@@ -1,26 +1,41 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jan 27 13:39:27 2019
+Modified on Mon Jan 15 13:15:29 2024 by Jonathan Yik Chang Ting
 
-@author: Benyamin Motevalli
+@original author: Benyamin Motevalli
 
 This class is developed based on "Archetypa Analysis" by Adele Cutler and Leo
 Breiman, Technometrics, November 1994, Vol.36, No.4, pp. 338-347
-
 """
 
-import numpy as np
-from scipy.optimize import nnls      
-import matplotlib.pyplot as plt
 from copy import copy
-import pandas as pd
+from math import *
+from time import time
+
+import matplotlib.pyplot as plt
 from matplotlib import colors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import numpy as np
 from numpy.matlib import repmat
-from math import *
+import pandas as pd
+from scipy.optimize import nnls
+from scipy.spatial.distance import cdist
+import seaborn as sns
+from sklearn.manifold import TSNE
+from sklearn.metrics import explained_variance_score
+from sklearn.model_selection import KFold
+from spams import archetypalAnalysis
+
+
+
+RANDOM_STATE = 42
+NUM_JOBS = 8
+PALETTE = 'viridis'
+
+
 
 class ArchetypalAnalysis():
-    
     """
     Parameters:
     -----------
@@ -34,14 +49,12 @@ class ArchetypalAnalysis():
         
                     Array of data points. It is the transpose of input data.
                     
-    
     archetypes:
         
         Dimension:  n_dim x n_archetypes
         
                     Array of archetypes. Each columns represents an archetype.
     
-        
     alfa:
         Dimension:  n_archetypes x n_data
         
@@ -70,15 +83,17 @@ class ArchetypalAnalysis():
                         1. furthest_sum (Default): the idea and code taken from https://github.com/ulfaslak/py_pcha and the original author is: Ulf Aslak Jensen.
                         2. random:  Randomly selects archetypes in the feature space. The points could be any point in space
                         3. random_idx:  Randomly selects archetypes from points in the dataset.
-    
     """
-    
-    def __init__(self, n_archetypes = 2, tolerance = 0.001, max_iter = 200, random_state = 0, C = 0.0001, initialize = 'furthest_sum', redundancy_try = 30):
-        
-       
+    def __init__(self, n_archetypes=2, iterative=False, n_subsets=10, shuffle=True, only_archetypes=False,
+                 tolerance=0.001, max_iter=200, random_state=0, C=0.0001, initialize='furthest_sum', redundancy_try=30, 
+                 robust=False, computeXtX=False, stepsFISTA=3, stepsAS=50, randominit=False, numThreads=-1):
         self.n_archetypes = n_archetypes
         self.n_dim = None
         self.n_data = None
+        self.iterative = iterative
+        self.n_subsets = n_subsets
+        self.shuffle = shuffle
+        self.only_archetypes = only_archetypes  # Stop running right after archetypes are computed, other functionalities won't be usable
         self.tolerance = tolerance
         self.C = C
         self.random_state = random_state
@@ -93,89 +108,136 @@ class ArchetypalAnalysis():
         self.close_match = {}
         self.max_iter = max_iter
         self.redundancy_try = redundancy_try
+        self.robust = robust
+        self.computeXtX = computeXtX
+        self.stepsFISTA = stepsFISTA
+        self.stepsAS = stepsAS
+        self.randominit = randominit
+        self.numThreads = numThreads
+        self.subsets_Zs = []
+        self.subsets_sample_idxs = []
+        self.run_time = 0.0
+
     
     def fit(self, X):
-        
+        self.X = X.T
+        self.n_dim, self.n_data = self.X.shape
+        start_time = time()
+        if self.iterative:
+            # Split data into subsets and conduct archetypal analysis on each of them
+            kFold = KFold(n_splits=self.n_subsets, shuffle=self.shuffle, random_state=self.random_state)
+            subsets_As, subsets_Bs = [], []
+            for (_, idxs) in kFold.split(X):
+                subset_X = X[idxs, :].T
+                subset_Z, subset_A, subset_B = archetypalAnalysis(np.asfortranarray(subset_X), Z0=None, p=self.n_archetypes, 
+                                                                  returnAB=True, robust=self.robust, epsilon=self.tolerance, computeXtX=self.computeXtX, 
+                                                                  stepsFISTA=self.stepsFISTA, stepsAS=self.stepsAS, randominit=self.randominit, 
+                                                                  numThreads=self.numThreads)  # TODO: more flexible *n_archetypes*
+                self.subsets_Zs.append(subset_Z)
+                if not self.only_archetypes:    
+                    subsets_As.append(subset_A.toarray())
+                    subsets_Bs.append(subset_B.toarray())
+                    self.subsets_sample_idxs.append(idxs)
+            # Get final archetypes by conducting archetypal analysis on the archetypes obtained from each subset
+            all_subsets_Zs = np.concatenate(self.subsets_Zs, axis=1)  # (m*(k*p))
+            self.archetypes, A_final, B_final = archetypalAnalysis(np.asfortranarray(all_subsets_Zs), Z0=None, p=self.n_archetypes,
+                                                                   returnAB=True, robust=self.robust, epsilon=self.tolerance, computeXtX=self.computeXtX, 
+                                                                   stepsFISTA=self.stepsFISTA, stepsAS=self.stepsAS, randominit=self.randominit, 
+                                                                   numThreads=self.numThreads)
+            self.run_time = time() - start_time
+            if self.only_archetypes:
+                return
+            # Rearrange the sample indices for subsequent comparison with the original data
+            all_sample_idxs = np.concatenate(self.subsets_sample_idxs, axis=0)
+            sorted_X_approx_idxs = np.array(sorted(zip(range(len(all_sample_idxs)), all_sample_idxs), key=lambda tup: tup[1]))[:, 0]
+            # Reconstruct data (n*m)
+            A, B = A_final.toarray(), B_final.toarray()
+            all_subsets_Zs_approx = np.matmul(self.archetypes, A)  # (m*(k*p))
+            prev_idx, subsets_Zs_approxs, subsets_overall_As, subsets_overall_Bs = 0, [], [], []
+            for (i, subset_Z) in enumerate(self.subsets_Zs):
+                n_subset_archetypes = subset_Z.shape[1]
+                subset_Z_approx = all_subsets_Zs_approx[:, prev_idx:prev_idx + n_subset_archetypes]  # Reconstructed subset archetypes from final archetypes
+                subset_overall_A = np.matmul(A[:, prev_idx:prev_idx + n_subset_archetypes], subsets_As[i])
+                subset_overall_B = np.matmul(subsets_Bs[i], B[prev_idx:prev_idx + n_subset_archetypes, :])
+                prev_idx += n_subset_archetypes
+                
+                subsets_overall_As.append(subset_overall_A)
+                subsets_overall_Bs.append(subset_overall_B)
+                subsets_Zs_approxs.append(subset_Z_approx)
+            self.alfa = np.concatenate(subsets_overall_As, axis=1)[:, sorted_X_approx_idxs]
+            self.beta = np.concatenate(subsets_overall_Bs, axis=0)[sorted_X_approx_idxs]
+        else:
+            self.archetypes, A, B = archetypalAnalysis(np.asfortranarray(self.X), Z0=None, p=self.n_archetypes, 
+                                         returnAB=True, robust=self.robust, epsilon=self.tolerance, computeXtX=self.computeXtX, 
+                                         stepsFISTA=self.stepsFISTA, stepsAS=self.stepsAS, randominit=self.randominit, 
+                                         numThreads=self.numThreads)
+            self.run_time = time() - start_time
+            if self.only_archetypes:
+                return
+            self.alfa = A.toarray()
+            self.beta = B.toarray()
+        self._rank_archetypes()
+        self.X_approx = np.matmul(self.archetypes, self.alfa)  # Note: self.archetypes = np.matmul(self.X, self.beta)
+        self.RSS_2 = calc_SSE(self.X, self.X_approx)
+        self.explained_variance_ = explained_variance(self.X, self.X_approx, method='sklearn')
+        self._extract_archetype_profiles()
+
+    
+    def fit_classical(self, X):
         self.X = X.T
         self.n_dim, self.n_data = self.X.shape
         self.RSS0_ = (self.X.var(axis = 1)).sum()
         self.RSS0_2 = (self.X.var(axis = 1) * self.n_data).sum()
         
         if (self.n_archetypes == 1):
-            self.archetypes = self.X.mean(axis = 1).reshape(self.n_dim, self.n_archetypes)
+            self.archetypes = self.X.mean(axis=1).reshape(self.n_dim, self.n_archetypes)
             self.alfa = np.ones([self.n_archetypes, self.n_data])
             self.RSS_ = self.RSS0_
             self.RSS_2 = self.RSS0_2
-            
         else:
-            
             self._initialize_archetypes()
-            
             self.RSS_ = 1.0
             RSS_old = 100.0
-            
             self.count_converg_ = 1
-            
             while ((abs(self.RSS_ - RSS_old)) / RSS_old > self.tolerance):
-                
-#                print('old = ', RSS_old, ' new = ', self.RSS_, 'err = ', abs(self.RSS_ - RSS_old))
+                # print('old = ', RSS_old, ' new = ', self.RSS_, 'err = ', abs(self.RSS_ - RSS_old))
                 RSS_old = self.RSS_
-                
                 self._optimize_alfa()
                 has_error = self._optimize_beta()
-
                 if(has_error):
                     return
-                
-                self.archetypes = np.matmul( self.X, self.beta)
-                
+                self.archetypes = np.matmul(self.X, self.beta)
                 self.RSS_ = self.RSSi_.sum()   
-
                 if (self.count_converg_ > self.max_iter):
                     break
-                
-                self.count_converg_ += 1
-                        
+                self.count_converg_ += 1  
             self._rank_archetypes()
-                
         self.X_approx = np.matmul(self.archetypes , self.alfa)   
         self.RSS_2 = calc_SSE(self.X, self.X_approx)
         self.explained_variance_ = explained_variance(self.X, self.X_approx, method = "_")
         self._extract_archetype_profiles()
         
     
-    def fit_transform(self,X):
-        
+    def fit_transform(self, X):
         self.fit(X)
-        
         X_approx = np.matmul(self.archetypes , self.alfa)
-        
-        
         return X_approx.T
+
     
     def transform(self, X_new):
-        
         X_new_Trans = X_new.T
-        
         n_data, n_dim = X_new.shape
-        
         alfa_new, RSSi_new = self.__optimize_alfa_for_transform(X_new, n_data)
-#        self.alfa, self.RSSi_ = self.__optimize_alfa_for_transform(X_new, n_data)
-        
+        # self.alfa, self.RSSi_ = self.__optimize_alfa_for_transform(X_new, n_data)
         X_new_Approx = np.matmul(self.archetypes , alfa_new)
-        
         return X_new_Approx.T, alfa_new
     
     
-    
     def _initialize_archetypes(self):
-        
         if self.initialize == 'random':
             self._random_initialize()
-            
         elif self.initialize == 'random_idx':
             self._random_idx_initialize()
-            
         elif self.initialize == 'furthest_sum':
             try:
                 self._furthest_sum_initialize()
@@ -187,22 +249,16 @@ class ArchetypalAnalysis():
             
             
     def _random_initialize(self):
-                   
         from sklearn.preprocessing import MinMaxScaler
-        
         np.random.seed(self.random_state)
-        
         sc = MinMaxScaler()
         sc.fit(self.X.T)
-        
         archs_norm = np.random.rand(self.n_archetypes, self.n_dim)
-        
         self.archetypes_init_ = sc.inverse_transform(archs_norm).T
         self.archetypes = copy(self.archetypes_init_)
         
         
-    def _furthest_sum_initialize(self):
-                   
+    def _furthest_sum_initialize(self):   
         init = [int(np.ceil(len(range(self.n_data)) * np.random.rand()))]
         n_data_range = range(self.n_data)
         init_arch_idx = furthest_sum(self.X[:, n_data_range], self.n_archetypes, init)
@@ -212,20 +268,15 @@ class ArchetypalAnalysis():
         
     
     def _random_idx_initialize(self):
-        
         lst_idx = []
         np.random.seed(self.random_state)
         for i in range(self.n_archetypes):
             lst_idx.append(np.random.randint(self.n_data))
-            
-        
         self.archetypes_init_ = self.X[:,lst_idx]
         self.archetypes = copy(self.archetypes_init_)
 
-
     
     def __optimize_alfa_for_transform(self, X_new, n_data):
-        
         """
         This functions aims to obtain corresponding alfa values for a new data
         point after the fitting is done and archetypes are determined.
@@ -236,17 +287,14 @@ class ArchetypalAnalysis():
         NOTE: X_new dimension is n_data x n_dim. Here, the original data is passed
         instead of transpose.
         """
-        
         alfa = np.zeros([self.n_archetypes, n_data])
         RSSi_ = np.zeros([n_data])
         for i, xi in enumerate(X_new):
             alfa[:, i], RSSi_[i] = solve_constrained_NNLS(xi, self.archetypes, self.C)
-            
         return alfa, RSSi_
     
     
     def _optimize_alfa(self):
-        
         """
         self.archetypes: has a shape of n_dim x n_archetypes
         self.alfai:      has a shape of n_archetypes x 1.
@@ -256,7 +304,6 @@ class ArchetypalAnalysis():
             
             xi = self.archetypes x self.alfai
         """
-        
         self.alfa = np.zeros([self.n_archetypes, self.n_data])
         self.RSSi_ = np.zeros([self.n_data])
         for i, xi in enumerate(self.X.T):            
@@ -264,41 +311,31 @@ class ArchetypalAnalysis():
 
 
     def _optimize_beta(self):
-        
         self.beta = np.zeros([self.n_data, self.n_archetypes])
         for l in range(self.n_archetypes):
-            
             v_bar_l, has_error = self._return_vbar_l(l)
-
             if has_error:
                 return has_error
-
             v_bar_l = v_bar_l.flatten()
-            self.beta[:,l], _ = solve_constrained_NNLS(v_bar_l, self.X,self.C)
-        
+            self.beta[:,l], _ = solve_constrained_NNLS(v_bar_l, self.X, self.C)
         return has_error
 
     
     def _find_new_archetype(self, k):
-    
         """
         In some circumstance, summation of alfa's for an archetype k becomes zero. 
         That means archetype k is redundant. This function aims to find a new candidate
         from data set to replace archetype k.        
         """
-
         arch_k = copy(self.archetypes[:,k])
-
         if k == 0:
             alfa_k = self.alfa[k:,:]
             archetypes = self.archetypes[:,k:]
-
         else:
             alfa_k = self.alfa[k-1:,:]
             archetypes = self.archetypes[:,k-1:]
-
         X_approx = np.matmul(archetypes , alfa_k)
-
+        
         RSS_i = ((self.X.T - X_approx.T) ** 2).sum(axis=1)
         if self.n_data < 10:
             id_maxes = RSS_i.argsort()
@@ -311,12 +348,10 @@ class ArchetypalAnalysis():
             import random
             id_max = random.Random(self.random_state).choice(list(id_maxes[:-1]))
             self.random_state += 10
-
         return self.X.T[id_max,:], id_max
   
 
     def _return_vbar_l(self, l):        
-        
         def return_vi(i, l, alfa_il):
             """
             This function calculates vi for each data point with respect to 
@@ -326,32 +361,24 @@ class ArchetypalAnalysis():
             l:          index of archetype that should be excluded.
             """
             eps = 0.000001
-            
-            
             vi = np.zeros([self.n_dim,1])
             # for k, alfaik, zk in enumerate(zip(self.alfa[:,i], self.archetypes)):
             for k in range(self.n_archetypes):                
                 if k != l:
                     xx = self.alfa[k,i] * self.archetypes[:,k]
                     vi[:,0] = vi[:,0] + xx
-            
             if (alfa_il < eps):
                 alfa_il = eps
             vi[:,0] = (self.X[:,i] - vi[:,0]) / alfa_il
-            
             return vi
         
         
         def check_arch_redundancy():
-            
             has_error = False
-            
             eps = 0.00000001
             
             # CHECK SUM SQ OF alfa_il
-            
             alfa_il_sumsq = np.sum(self.alfa[l,:] ** 2)
-            
             count = 1
             while(alfa_il_sumsq < eps):
                 
@@ -359,14 +386,14 @@ class ArchetypalAnalysis():
                 # arch_old = copy(self.archetypes[:,l])
                 self.archetypes[:,l], id_max  = self._find_new_archetype(l)
                 # print(np.linalg.norm(arch_old - self.archetypes[:,l]))
-                
+
                 # RE-OPTIMIZING ALFA
                 self._optimize_alfa()
                 # self.alfa[l,:], _ = self.__optimize_alfa_for_transform(self.archetypes[:,l].reshape(1,-1), n_data = 1)
                 
                 # RE-CALCULATE SUM SQ OF alfa_il
                 alfa_il_sumsq = np.sum(self.alfa[l,:] ** 2)
-                
+
                 if (count > self.redundancy_try):
                     has_error = True
                     break
@@ -375,12 +402,8 @@ class ArchetypalAnalysis():
             if (count > 1):
                 # print(f'Warning: Archetype {l+1} was recognised redundant. The redundancy issue was resolved after {count -1} try(s) and a new candidate is replaced.')
                 print(f'Warning: A redundant archetype was recognised. The redundancy issue was resolved after {count -1} try(s) and a new candidate is replaced.')
-                
             return has_error, alfa_il_sumsq
-        
-        
         has_error, alfa_il_sumsq = check_arch_redundancy()
-        
         if (has_error):
             self.n_archetypes = self.n_archetypes - 1
             print(f'Warning: After {self.redundancy_try} tries, the redundancy issue was not resolved. Hence, the number of archetypes is reduced to: {self.n_archetypes}')                    
@@ -397,12 +420,10 @@ class ArchetypalAnalysis():
             if (alfa_il_sumsq < eps):
                 alfa_il_sumsq = eps
             v_bar = sum_alfa_il_sq_vi / alfa_il_sumsq
-        
         return v_bar, has_error
     
     
     def _rank_archetypes(self):
-        
         """
         This function aims to rank archetypes. To do this, each data point is 
         approximated just using one of the archetypes. Then, we check how good
@@ -414,11 +435,9 @@ class ArchetypalAnalysis():
         """
         exp_var_per_arch_ = []
         for i in range(self.n_archetypes):
-            X_approx = np.matmul(self.archetypes[:,i].reshape(self.n_dim,1) , self.alfa[i,:].reshape(1,self.n_data))
-            exp_var_per_arch_.append((i,explained_variance(self.X, X_approx, method = "_")))
-    
-#        self.exp_var_per_arch_ = tuple(self.exp_var_per_arch_)
-        
+            X_approx = np.matmul(self.archetypes[:, i].reshape(self.n_dim, 1) , self.alfa[i, :].reshape(1, self.n_data))
+            exp_var_per_arch_.append((i, explained_variance(self.X, X_approx, method = "_")))
+        # self.exp_var_per_arch_ = tuple(self.exp_var_per_arch_)
         exp_var_per_arch_ = sorted(exp_var_per_arch_, key = lambda x: x[1], reverse=True )
         rank = [item[0] for item in exp_var_per_arch_]
         self.score_per_arch = [item[1] for item in exp_var_per_arch_]
@@ -428,8 +447,7 @@ class ArchetypalAnalysis():
         self.beta = self.beta[:,rank]
    
     
-    def plot_simplex(self, alfa, plot_args = {}, grid_on = True):
-        
+    def plot_simplex(self, alfa, plot_args={}, grid_on = True):
         """
         # group_color = None, color = None, marker = None, size = None
         group_color:    
@@ -438,7 +456,6 @@ class ArchetypalAnalysis():
             
             Description:    Contains the category of data point.
         """
-        
         labels = ('A'+str(i + 1) for i in range(self.n_archetypes))
         rotate_labels=True
         label_offset=0.10
@@ -455,7 +472,7 @@ class ArchetypalAnalysis():
                         for _ in range(sides)
                     ]
                 )
-    
+
         # If data is Nxsides, newdata is Nx2.
         if scaling:
             # Scales data for you.
@@ -463,10 +480,7 @@ class ArchetypalAnalysis():
         else:
             # Assumes data already sums to 1.
             newdata = np.dot(data,basis)
-    
-        
-        
-        fig = plt.figure(figsize=(10,10))
+        fig = plt.figure(figsize=(5,5))
         ax = fig.add_subplot(111)
     
         for i,l in enumerate(labels):
@@ -488,13 +502,10 @@ class ArchetypalAnalysis():
                     verticalalignment='center',
                     rotation=angle
                 )
-    
         # Clear normal matplotlib axes graphics.
         ax.set_xticks(())
         ax.set_yticks(())
         ax.set_frame_on(False)
-        
-        
         # Plot border
         lst_ax_0 = []
         lst_ax_1 = []
@@ -505,16 +516,12 @@ class ArchetypalAnalysis():
                     ignore = True
                 else:
                     ignore = False                        
-    #                
                 if not (ignore):                    
                     lst_ax_0.append(basis[i,0] + [0,])
                     lst_ax_1.append(basis[i,1] + [0,])
                     lst_ax_0.append(basis[j,0] + [0,])
                     lst_ax_1.append(basis[j,1] + [0,])
-    
-
-        
-        ax.plot(lst_ax_0,lst_ax_1, color='#FFFFFF',linewidth=1, alpha = 0.5, zorder=1)
+        ax.plot(lst_ax_0, lst_ax_1, color='#FFFFFF', linewidth=1, alpha = 0.5, zorder=1)
         
         # Plot border
         lst_ax_0 = []
@@ -526,9 +533,7 @@ class ArchetypalAnalysis():
         lst_ax_0.append(basis[0,0] + [0,])
         lst_ax_1.append(basis[0,1] + [0,])
 
-    #    
         ax.plot(lst_ax_0,lst_ax_1,linewidth=1, zorder=2) #, **edge_args ) 
-        
         if len(plot_args) == 0:
             ax.scatter(newdata[:,0], newdata[:,1], color='black', zorder=3, alpha=0.5)
         else:
@@ -543,35 +548,26 @@ class ArchetypalAnalysis():
                         if (keys!= 'marker'):
                             tmp_arg[keys] = plot_args[keys].values[row_idx]
                     
-                    ax.scatter(newdata[row_idx,0],newdata[row_idx,1], **tmp_arg, marker =  marker, alpha=0.5, zorder=3)
+                    ax.scatter(newdata[row_idx,0], newdata[row_idx,1], **tmp_arg, marker=marker, alpha=0.5, zorder=3)
             else:
-                ax.scatter(newdata[:,0], newdata[:,1], **plot_args, marker = 's', zorder=3, alpha=0.5)
-        
-        
-        
+                ax.scatter(newdata[:,0], newdata[:,1], **plot_args, marker='s', zorder=3, alpha=0.5)
         plt.show()
             
                
     def parallel_plot(self, lst_feat, df_color, linewidth = '0.3', arch_color = 'black'):
-        
         """
         Based on source: http://benalexkeen.com/parallel-coordinates-in-matplotlib/
         
         lst_feat:
                     list of features.
-        
+
         df_color:
                     A dataframe of collection of colors corresponding to each
                     data point.
-        
         """
-    
         from matplotlib import ticker
-        
         x = [i for i, _ in enumerate(lst_feat)]
-        
         df = pd.DataFrame(self.X.T, columns = lst_feat)
-        
         for i in range(self.n_archetypes):
             df.loc[-1] = list(self.archetypes[:,i])
             df.index = df.index + 1  # shifting index
@@ -583,14 +579,12 @@ class ArchetypalAnalysis():
                 
         # Create (X-1) sublots along x axis
         fig, axes = plt.subplots(1, len(x)-1, sharey=False, figsize=(15,5))
-        
         # Get min, max and range for each column
         # Normalize the data for each column
         min_max_range = {}       
         for col in lst_feat:
             min_max_range[col] = [df[col].min(), df[col].max(), np.ptp(df[col])]
             df[col] = np.true_divide(df[col] - df[col].min(), np.ptp(df[col]))
-        
         # Plot 
         for i, ax in enumerate(axes):
             for idx in df.index:    
@@ -615,21 +609,16 @@ class ArchetypalAnalysis():
             ticks = [round(norm_min + norm_step * i, 2) for i in range(ticks)]
             ax.yaxis.set_ticks(ticks)
             ax.set_yticklabels(tick_labels)
-        
         for dim, ax in enumerate(axes):
             ax.xaxis.set_major_locator(ticker.FixedLocator([dim]))
             set_ticks_for_axis(dim, ax, ticks=6)
             ax.set_xticklabels([lst_feat[dim]], rotation='vertical')
-            
-        
         # Move the final axis' ticks to the right-hand side
         ax = plt.twinx(axes[-1])
         dim = len(axes)
         ax.xaxis.set_major_locator(ticker.FixedLocator([x[-2], x[-1]]))
         set_ticks_for_axis(dim, ax, ticks=6)
         ax.set_xticklabels([lst_feat[-2], lst_feat[-1]], rotation='vertical')
-        
-        
         # Remove space between subplots
         plt.subplots_adjust(wspace=0)       
         plt.show()
@@ -644,11 +633,9 @@ class ArchetypalAnalysis():
         self.archetype_profile = np.zeros([self.n_dim, self.n_archetypes])
         for i in range(self.n_archetypes):
             for j in range(self.n_dim):
-                
-                x_arch = self.archetypes[j,i]
+                x_arch = self.archetypes[j, i]
                 x_data = self.X[j, :]
-                
-                self.archetype_profile[j,i] = ecdf(x_data, x_arch)
+                self.archetype_profile[j, i] = ecdf(x_data, x_arch)
                 
     
     def plot_profile(self, feature_cols = None):
@@ -658,12 +645,8 @@ class ArchetypalAnalysis():
         feature_cols:
             Optional input. list of feature names to use to label x-axis.
         """               
-        
         plt.style.use('ggplot')
-        
         x_vals = np.arange(1, self.n_dim + 1)
-        
-        
         for i in range(self.n_archetypes):
             plt.figure(figsize=(14,5))            
             plt.bar(x_vals, self.archetype_profile[:,i] * 100.0, color = '#413F3F')
@@ -674,78 +657,58 @@ class ArchetypalAnalysis():
             plt.rcParams.update({'font.size': 10})
             plt.tight_layout()
             
-            
     
-    def plot_radar_profile(self, feature_cols = None, Title = 'Radar plot of archetype profiles'):
-        
+    def plot_radar_profile(self, feature_cols=None, Title='Radar plot of archetype profiles'):
         if (feature_cols != None):
             labels = feature_cols
         else:
             labels = [str(i+1) for i in range(self.n_dim)]
-            
-        angles = np.linspace(0, 2*np.pi, self.n_dim, endpoint = False)
+        angles = np.linspace(0, 2*np.pi, self.n_dim, endpoint=False)
         angles = np.concatenate((angles, [angles[0]])) 
         
-        fig=plt.figure()
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot(111, polar=True)
         legend = []
         for i in range(self.n_archetypes):
-            
-            x_close = self.archetype_profile[:,i]
-            x_close = np.concatenate((x_close, [x_close[0]]))           
-            
-            ax = fig.add_subplot(111, polar=True)
+            x_close = self.archetype_profile[:, i]
+            x_close = np.concatenate((x_close, [x_close[0]]))      
             ax.plot(angles, x_close, 'o-', linewidth=2)
             ax.fill(angles, x_close, alpha=0.25)
-            ax.set_thetagrids(np.array(angles) * 180.0/np.pi, labels)
+            ax.set_thetagrids(np.array(angles) * 180.0/np.pi, ['0'] + labels)
             ax.set_title(Title)
             ax.grid(True)
-            legend.append('A'+str(i + 1))
-        
+            legend.extend([f"A{str(i + 1)}", '_'])
         ax.legend(legend)
         
-        
-            
     
-    def _extract_closes_match(self):
-        
-        from scipy.spatial.distance import cdist
-        
+    def _extract_close_match(self):
         self.close_match = {}
         for i in range(self.n_archetypes):
-            r = cdist(self.X.T, self.archetypes[:,i].reshape(1, self.n_dim))
+            r = cdist(self.X.T, self.archetypes[:, i].reshape(1, self.n_dim))
             i_min = np.argmin(r)
-            
-            self.close_match[i+1] = (i_min, self.alfa[:,i_min])
+            self.close_match[i + 1] = (i_min, self.alfa[:, i_min])
             
     
-    def plot_close_match(self, Title = 'Radar plot of closest matches'):
-        
-#        import seaborn as sns
-        
+    def plot_close_match(self, Title='Radar plot of closest matches'):
         if (len(self.close_match) == 0):
-            self._extract_closes_match()
-        
+            self._extract_close_match()
         labels = ['A' + str(i+1) for i in range(self.n_archetypes)]
         angles = np.linspace(0, 2*np.pi, self.n_archetypes, endpoint = False)
         angles = np.concatenate((angles, [angles[0]])) 
         
-        fig=plt.figure()
+        fig=plt.figure(figsize=(3, 3))
+        ax = fig.add_subplot(111, polar=True)
         for i in range(1, self.n_archetypes + 1):
-            
             x_close = self.close_match[i][1]
-            x_close = np.concatenate((x_close, [x_close[0]]))           
-            
-            ax = fig.add_subplot(111, polar=True)
+            x_close = np.concatenate((x_close, [x_close[0]]))
             ax.plot(angles, x_close, 'o-', linewidth=2)
             ax.fill(angles, x_close, alpha=0.25)
-            ax.set_thetagrids(np.array(angles) * 180.0/np.pi, labels)
+            ax.set_thetagrids(np.array(angles) * 180.0/np.pi, ['0'] + labels)
             ax.set_title(Title)
             ax.grid(True)
 
 
-
 def find_furthest_point(x_search, x_ref):
-    
     """
     This function finds a data point in x_search which has the furthest 
     distance from all data points in x_ref. In the case of archetypes,
@@ -756,18 +719,13 @@ def find_furthest_point(x_search, x_ref):
         dimensions and the rows should be the data points.
     """
     from scipy.spatial.distance import cdist
-    
     D = cdist(x_ref, x_search)
     D_sum = D.sum(axis=0)
     idxmax = np.argmax(D_sum)
-    
     return x_search[idxmax,:], idxmax
-
-                        
 
 
 def ecdf(X, x):
-    
     """Emperical Cumulative Distribution Function
     
     X: 
@@ -781,49 +739,34 @@ def ecdf(X, x):
         The cumulative distribution of data points with respect to the archetype
         (the probablity or how much of data in a specific dimension is covered
         by the archetype).
-    
     """
-    
     return float(len(X[X < x]) / len(X))
 
 
 def calc_SSE(X_act, X_appr):
-    
     """
     This function returns the Sum of Square Errors.
     """
-    
     return ((X_act - X_appr) ** 2).sum()
 
+
 def calc_SST(X_act):
-    
     """
     This function returns the Sum of Square Errors.
     """
-    
     return (X_act ** 2).sum()
 
 
-
-
-def explained_variance(X_act, X_appr, method = 'sklearn'):
-    
-    
-    if (method.lower == 'sklearn'):
-            
-        from sklearn.metrics import explained_variance_score
+def explained_variance(X_act, X_appr, method='sklearn'):
+    if method.lower() == 'sklearn':  
         return explained_variance_score(X_act.T, X_appr.T)  
-        
     else:
-        
         SSE = calc_SSE(X_act, X_appr)
         SST = calc_SST(X_act)
-        
         return (SST - SSE) / SST
         
         
 def solve_constrained_NNLS(u, t, C):
-    
     """
     This function solves the typical equation of ||U - TW||^2 where U and T are
     defined and W should be determined such that the above expression is 
@@ -855,22 +798,16 @@ def solve_constrained_NNLS(u, t, C):
     
     Solving for BETA's:
     -------------------   
-    
     """
-    
     m_observation, n_variables = t.shape
-    
     # EMPHASIZING THE CONSTRAINT
     u = u * C
     t = t * C   
-    
     # ADDING THE CONSTRAINT EQUATION
     u = np.append(u, [1], axis = 0)
     t = np.append(t, np.ones([1,n_variables]), axis = 0)
     w, rnorm = nnls(t, u)
-    
     return w, rnorm
-        
         
 
 def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
@@ -904,7 +841,6 @@ def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
     edge_args:      Any matplotlib keyword args for plots.
     
     fig_args:       Any matplotlib keyword args for figures.
-    
     '''
     basis = np.array(
                     [
@@ -992,8 +928,6 @@ def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
 #    )
 #    
     ax.plot(lst_ax_0,lst_ax_1,linewidth=1) #, **edge_args ) 
-    
-
     return newdata,ax 
 
 
@@ -1006,7 +940,6 @@ def furthest_sum(K, noc, i, exclude=[]):
             
         and the original author is: Ulf Aslak Jensen.
     """
-    
     
     """
     Original Note:
@@ -1083,8 +1016,8 @@ def furthest_sum(K, noc, i, exclude=[]):
             ind_t = t[ind]
             i.append(ind_t)
             index[ind_t] = -1
-
     return i
+
 
 # =============================
 # ADDITIONAL PLOTTING FUNCTIONS
@@ -1097,15 +1030,10 @@ def compare_profile(AA_prof_1, AA_prof_2, feature_cols):
     feature_cols:
         Optional input. list of feature names to use to label x-axis.
     """               
-    
     plt.style.use('ggplot')
-    
     n_dim = len(feature_cols)
-    
     x_vals = np.arange(1, n_dim + 1)
-    
     plt.figure(figsize=(14,5))
-    
     plt.bar(x_vals, AA_prof_1 * 100.0, color = '#413F3F', label='Minimum Case')
     plt.bar(x_vals, AA_prof_2 * 100.0, color = '#8A2BE2', alpha = 0.5, label='Maximum Case')
     plt.xticks(x_vals, feature_cols, rotation='vertical')
@@ -1115,52 +1043,40 @@ def compare_profile(AA_prof_1, AA_prof_2, feature_cols):
     plt.tight_layout()
     plt.legend(loc='upper left')
     
-
-                    
  
 def datapoint_profile(x_point, x_data):
-    
     point_profile = []
-    
     for i, p in enumerate(x_point):
-        
         d = x_data[i, :]
-        
         point_profile.append(ecdf(d, p))
-        
     return np.array(point_profile)
 
 
-def plot_radar_datapoint(AA, X, Title = 'Radar plot of datapoint'):
-        
-#        import seaborn as sns
-        
-       
+def plot_radar_datapoint(AA, X, Title='Radar plot of datapoint'):
+    # import seaborn as sns
     _, alfa_X = AA.transform(X)
     
     labels = ['A' + str(i+1) for i in range(AA.n_archetypes)]
     angles = np.linspace(0, 2*np.pi, AA.n_archetypes, endpoint = False)
     angles = np.concatenate((angles, [angles[0]])) 
     
-    fig=plt.figure(figsize=(4,4))
+    fig=plt.figure(figsize=(3, 3))
     alfa_X = np.concatenate((alfa_X, [alfa_X[0]]))           
     
     ax = fig.add_subplot(111, polar=True)
     ax = plt.subplot(111, polar=True)
     ax.plot(angles, alfa_X, 'o-', markersize=5, linewidth=1.5, color='#273746')
     ax.fill(angles, alfa_X, alpha=0.25)
-    ax.set_thetagrids(np.array(angles) * 180.0/np.pi, labels)
+    ax.set_thetagrids(np.array(angles) * 180.0/np.pi, ['0'] + labels)
     ax.set_title(Title)
     ax.grid(True)
     ax.set_rlim(0,1)
     ax.set_facecolor('#EAECEE')
-    
     return ax
 
 
-def create_simplex_ax(AA, grid_on = True, gridcolor = '#EAECEE',
-                     bordercolor='#4A235A', fontcolor = '#6C3483', fig_size=[10,10]):
-        
+def create_simplex_ax(AA, grid_on=True, gridcolor='#EAECEE',
+                     bordercolor='#4A235A', fontcolor='#6C3483', fig_size=(5, 5)):
         """
         # group_color = None, color = None, marker = None, size = None
         group_color:    
@@ -1169,11 +1085,9 @@ def create_simplex_ax(AA, grid_on = True, gridcolor = '#EAECEE',
             
             Description:    Contains the category of data point.
         """        
-#         plt.style.use('seaborn-paper')
-        
+        # plt.style.use('seaborn-paper')
         n_archetypes = AA.n_archetypes
-        
-#        fig = plt.figure(figsize=[16,8])
+        # fig = plt.figure(figsize=[16,8])
         fig, ax = plt.subplots(figsize=fig_size)       
         
         labels = ('A'+str(i + 1) for i in range(n_archetypes))
@@ -1218,8 +1132,7 @@ def create_simplex_ax(AA, grid_on = True, gridcolor = '#EAECEE',
         ax.set_xticks(())
         ax.set_yticks(())
         ax.set_frame_on(False)
-        
-        
+
         # Plot Grids
         lst_ax_0 = []
         lst_ax_1 = []
@@ -1230,15 +1143,11 @@ def create_simplex_ax(AA, grid_on = True, gridcolor = '#EAECEE',
                     ignore = True
                 else:
                     ignore = False                        
-    #                
                 if not (ignore):                    
                     lst_ax_0.append(basis[i,0] + [0,])
                     lst_ax_1.append(basis[i,1] + [0,])
                     lst_ax_0.append(basis[j,0] + [0,])
                     lst_ax_1.append(basis[j,1] + [0,])
-    
-
-        
         ax.plot(lst_ax_0,lst_ax_1, color=gridcolor,linewidth=0.5, alpha = 0.5, zorder=1)
         
         # Plot border
@@ -1247,22 +1156,17 @@ def create_simplex_ax(AA, grid_on = True, gridcolor = '#EAECEE',
         for _ in range(sides):
             lst_ax_0.append(basis[_,0] + [0,])
             lst_ax_1.append(basis[_,1] + [0,])
-    
         lst_ax_0.append(basis[0,0] + [0,])
         lst_ax_1.append(basis[0,1] + [0,])
-
-    #    
         ax.plot(lst_ax_0,lst_ax_1,linewidth=1.5, color=bordercolor, zorder=2) #, **edge_args )               
     
         return fig    
 
 
 def map_alfa_to_simplex(alfa, AA):
-    
     """
     alfa:    2D-array (n_archetypes x n_data)
     """
-    
     n_archetypes = AA.n_archetypes
     basis = np.array(
                         [
@@ -1274,24 +1178,25 @@ def map_alfa_to_simplex(alfa, AA):
                         ]
                     )
     mapped_alfa = np.dot(alfa.T,basis)
-    
     return mapped_alfa
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-       
-
+def plot_tsne(X, figNamePrefix='', figSize=(3, 3), markerSize=3, numComponents=2, markIdxs=[],
+             perplexity=30.0, early_exaggeration=12.0, learning_rate='auto', n_iter=1000, angle=0.5, 
+             metric='euclidean', init='pca', method='barnes_hut', min_grad_norm=1e-7, n_iter_without_progress=300):
+    reducer = TSNE(n_components=numComponents, init=init, method=method, angle=angle, random_state=RANDOM_STATE, 
+                   perplexity=perplexity, early_exaggeration=early_exaggeration, learning_rate=learning_rate, n_iter=n_iter,
+                   n_iter_without_progress=n_iter_without_progress, min_grad_norm=min_grad_norm, metric=metric, metric_params=None, 
+                   verbose=0, n_jobs=NUM_JOBS)
+    embedding = reducer.fit_transform(X)
+    sns.set_palette('icefire')
+    plt.figure(figsize=figSize)
+    plt.scatter(x=embedding[:, 0], y=embedding[:, 1], s=markerSize, c=range(len(X)), cmap=PALETTE)
+    # c=[sns.color_palette()[x] for x in penguins.species.map({"Adelie":0, "Chinstrap":1, "Gentoo":2})])
+    plt.scatter(x=embedding[markIdxs, 0], y=embedding[markIdxs, 1], marker='*', s=markerSize*10, c='k')
+    plt.grid(linestyle='dotted')
+    plt.xlabel('Dimension 1')
+    plt.ylabel('Dimension 2')
+    plt.gca().set_aspect('equal', 'datalim')
+    plt.savefig(f"figures/{figNamePrefix}_tSNE.png", bbox_inches='tight')
 
