@@ -3,3 +3,5 @@ Potential venue:
 - Data Mining and Knowledge Discovery
 - International Conference on Learning Analytics and Knowledge (October 2)
 - SIAM International Conference on Data Mining (September 15)
+
+- Had to change the header of AuPt_nanoparticle_data.csv from 'confID' to 'ID'

@@ -16,6 +16,7 @@ from time import time
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from MulticoreTSNE import MulticoreTSNE
 import numpy as np
 from numpy.matlib import repmat
 import pandas as pd
@@ -32,6 +33,7 @@ from spams import archetypalAnalysis
 RANDOM_STATE = 42
 NUM_JOBS = 8
 PALETTE = 'viridis'
+DPI = None
 
 
 
@@ -447,7 +449,7 @@ class ArchetypalAnalysis():
         self.beta = self.beta[:,rank]
    
     
-    def plot_simplex(self, alfa, plot_args={}, grid_on = True):
+    def plot_simplex(self, alfa, plot_args={}, grid_on=True):
         """
         # group_color = None, color = None, marker = None, size = None
         group_color:    
@@ -554,7 +556,7 @@ class ArchetypalAnalysis():
         plt.show()
             
                
-    def parallel_plot(self, lst_feat, df_color, linewidth = '0.3', arch_color = 'black'):
+    def parallel_plot(self, lst_feat, df_color, linewidth='0.3', arch_color='black'):
         """
         Based on source: http://benalexkeen.com/parallel-coordinates-in-matplotlib/
         
@@ -638,20 +640,22 @@ class ArchetypalAnalysis():
                 self.archetype_profile[j, i] = ecdf(x_data, x_arch)
                 
     
-    def plot_profile(self, feature_cols = None):
+    def plot_profile(self, allfeatNames=None, selectedFeatsIdxs=None, figSize=(14, 5), dpi=DPI):
         """
         This function plots the profile of the archetypes.
-        
-        feature_cols:
-            Optional input. list of feature names to use to label x-axis.
+
+        allfeatNames:
+            Optional input. list of all feature names.
+        selectedFeatsIdxs:
+            Optional input. list of names of features of interest.
         """               
         plt.style.use('ggplot')
-        x_vals = np.arange(1, self.n_dim + 1)
+        x_vals = np.arange(1, self.n_dim + 1)[selectedFeatsIdxs]
         for i in range(self.n_archetypes):
-            plt.figure(figsize=(14,5))            
-            plt.bar(x_vals, self.archetype_profile[:,i] * 100.0, color = '#413F3F')
-            if (feature_cols != None):
-                plt.xticks(x_vals, feature_cols, rotation='vertical')
+            plt.figure(figsize=figSize, dpi=dpi)
+            plt.bar(x_vals, self.archetype_profile[selectedFeatsIdxs, i] * 100.0, color='#413F3F')
+            if (selectedFeatsIdxs != None):
+                plt.xticks(x_vals, [allfeatNames[idx] for idx in selectedFeatsIdxs], rotation='vertical')
             plt.ylim([0,100])
             plt.ylabel('A' + str(i + 1))
             plt.rcParams.update({'font.size': 10})
@@ -1182,15 +1186,20 @@ def map_alfa_to_simplex(alfa, AA):
 
 
 def plot_tsne(X, figNamePrefix='', figSize=(3, 3), markerSize=3, numComponents=2, markIdxs=[],
-             perplexity=30.0, early_exaggeration=12.0, learning_rate='auto', n_iter=1000, angle=0.5, 
-             metric='euclidean', init='pca', method='barnes_hut', min_grad_norm=1e-7, n_iter_without_progress=300):
+              perplexity=30.0, early_exaggeration=12.0, learning_rate='auto', n_iter=1000, angle=0.5, 
+              metric='euclidean', init='pca', method='barnes_hut', min_grad_norm=1e-7, 
+              n_iter_without_progress=300, n_jobs=NUM_JOBS):
+    # reducer = MulticoreTSNE(n_components=numComponents, init='random', method=method, angle=angle, random_state=RANDOM_STATE, 
+    #                         perplexity=perplexity, early_exaggeration=early_exaggeration, learning_rate=200.0, n_iter=n_iter,
+    #                         n_iter_without_progress=n_iter_without_progress, min_grad_norm=min_grad_norm, metric=metric, 
+    #                         verbose=0, n_jobs=n_jobs)
     reducer = TSNE(n_components=numComponents, init=init, method=method, angle=angle, random_state=RANDOM_STATE, 
                    perplexity=perplexity, early_exaggeration=early_exaggeration, learning_rate=learning_rate, n_iter=n_iter,
-                   n_iter_without_progress=n_iter_without_progress, min_grad_norm=min_grad_norm, metric=metric, metric_params=None, 
-                   verbose=0, n_jobs=NUM_JOBS)
+                   n_iter_without_progress=n_iter_without_progress, min_grad_norm=min_grad_norm, metric=metric, 
+                   verbose=0, n_jobs=n_jobs)
     embedding = reducer.fit_transform(X)
     sns.set_palette('icefire')
-    plt.figure(figsize=figSize)
+    plt.figure(figsize=figSize, dpi=DPI)
     plt.scatter(x=embedding[:, 0], y=embedding[:, 1], s=markerSize, c=range(len(X)), cmap=PALETTE)
     # c=[sns.color_palette()[x] for x in penguins.species.map({"Adelie":0, "Chinstrap":1, "Gentoo":2})])
     plt.scatter(x=embedding[markIdxs, 0], y=embedding[markIdxs, 1], marker='*', s=markerSize*10, c='k')
