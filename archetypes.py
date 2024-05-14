@@ -88,7 +88,7 @@ class ArchetypalAnalysis():
     """
     def __init__(self, n_archetypes=2, iterative=False, n_subsets=10, shuffle=True, only_archetypes=False,
                  tolerance=0.001, max_iter=200, random_state=0, C=0.0001, initialize='furthest_sum', redundancy_try=30, 
-                 robust=False, computeXtX=False, stepsFISTA=3, stepsAS=50, randominit=False, numThreads=-1):
+                 robust=False, computeXtX=False, stepsFISTA=3, stepsAS=50, randominit=False, numThreads=-1, verbose=False):
         self.n_archetypes = n_archetypes
         self.n_dim = None
         self.n_data = None
@@ -119,6 +119,7 @@ class ArchetypalAnalysis():
         self.subsets_Zs = []
         self.subsets_sample_idxs = []
         self.run_time = 0.0
+        self.verbose = verbose
 
     
     def fit(self, X):
@@ -129,7 +130,9 @@ class ArchetypalAnalysis():
             # Split data into subsets and conduct archetypal analysis on each of them
             kFold = KFold(n_splits=self.n_subsets, shuffle=self.shuffle, random_state=self.random_state)
             subsets_As, subsets_Bs = [], []
-            for (_, idxs) in kFold.split(X):
+            for (i, idxs) in kFold.split(X):
+                if self.verbose:
+                    print(f"Subset {i}")
                 subset_X = X[idxs, :].T
                 subset_Z, subset_A, subset_B = archetypalAnalysis(np.asfortranarray(subset_X), Z0=None, p=self.n_archetypes, 
                                                                   returnAB=True, robust=self.robust, epsilon=self.tolerance, computeXtX=self.computeXtX, 
@@ -449,7 +452,8 @@ class ArchetypalAnalysis():
         self.beta = self.beta[:,rank]
    
     
-    def plot_simplex(self, alfa, plot_args={}, grid_on=True):
+    def plot_simplex(self, alfa, plot_args={}, grid_on=True, showLabel=True,
+                     figSize=(3, 3), dpi=DPI, markerSize=2, figNamePrefix=''):
         """
         # group_color = None, color = None, marker = None, size = None
         group_color:    
@@ -458,7 +462,7 @@ class ArchetypalAnalysis():
             
             Description:    Contains the category of data point.
         """
-        labels = ('A'+str(i + 1) for i in range(self.n_archetypes))
+        labels = ('A'+str(i + 1) for i in range(self.n_archetypes)) if showLabel else []
         rotate_labels=True
         label_offset=0.10
         data = alfa.T
@@ -478,18 +482,18 @@ class ArchetypalAnalysis():
         # If data is Nxsides, newdata is Nx2.
         if scaling:
             # Scales data for you.
-            newdata = np.dot((data.T / data.sum(-1)).T,basis)
+            newdata = np.dot((data.T / data.sum(-1)).T, basis)
         else:
             # Assumes data already sums to 1.
-            newdata = np.dot(data,basis)
-        fig = plt.figure(figsize=(5,5))
+            newdata = np.dot(data, basis)
+        fig = plt.figure(figsize=figSize, dpi=dpi)
         ax = fig.add_subplot(111)
     
-        for i,l in enumerate(labels):
+        for (i, l) in enumerate(labels):
             if i >= sides:
                 break
-            x = basis[i,0]
-            y = basis[i,1]
+            x = basis[i, 0]
+            y = basis[i, 1]
             if rotate_labels:
                 angle = 180*np.arctan(y/x)/pi + 90
                 if angle > 90 and angle <= 270:
@@ -514,37 +518,37 @@ class ArchetypalAnalysis():
         ignore = False
         for i in range(sides):
             for j in range(i + 2, sides):
-                if (i == 0 & j == sides):
+                if (i==0 & j==sides):
                     ignore = True
                 else:
                     ignore = False                        
-                if not (ignore):                    
-                    lst_ax_0.append(basis[i,0] + [0,])
-                    lst_ax_1.append(basis[i,1] + [0,])
-                    lst_ax_0.append(basis[j,0] + [0,])
-                    lst_ax_1.append(basis[j,1] + [0,])
-        ax.plot(lst_ax_0, lst_ax_1, color='#FFFFFF', linewidth=1, alpha = 0.5, zorder=1)
+                if not (ignore):              
+                    lst_ax_0.append(basis[i, 0] + [0,])
+                    lst_ax_1.append(basis[i, 1] + [0,])
+                    lst_ax_0.append(basis[j, 0] + [0,])
+                    lst_ax_1.append(basis[j, 1] + [0,])
+        ax.plot(lst_ax_0, lst_ax_1, color='#212121', linewidth=0.1, alpha=0.5, zorder=1)
         
         # Plot border
         lst_ax_0 = []
         lst_ax_1 = []
         for _ in range(sides):
-            lst_ax_0.append(basis[_,0] + [0,])
-            lst_ax_1.append(basis[_,1] + [0,])
+            lst_ax_0.append(basis[_, 0] + [0,])
+            lst_ax_1.append(basis[_, 1] + [0,])
     
-        lst_ax_0.append(basis[0,0] + [0,])
-        lst_ax_1.append(basis[0,1] + [0,])
+        lst_ax_0.append(basis[0, 0] + [0,])
+        lst_ax_1.append(basis[0, 1] + [0,])
 
-        ax.plot(lst_ax_0,lst_ax_1,linewidth=1, zorder=2) #, **edge_args ) 
+        ax.plot(lst_ax_0, lst_ax_1, linewidth=1, zorder=2, color='k')  #, **edge_args ) 
         if len(plot_args) == 0:
-            ax.scatter(newdata[:,0], newdata[:,1], color='black', zorder=3, alpha=0.5)
+            ax.scatter(newdata[:, 0], newdata[:, 1], color='#303F9F', zorder=3, alpha=0.5, s=markerSize)
         else:
             if ('marker' in plot_args):   
                 marker_vals = plot_args['marker'].values
                 marker_unq = np.unique(marker_vals)                
                 
                 for marker in marker_unq:
-                    row_idx = np.where(marker_vals == marker)
+                    row_idx = np.where(marker_vals==marker)
                     tmp_arg = {}
                     for keys in plot_args:
                         if (keys!= 'marker'):
@@ -553,7 +557,7 @@ class ArchetypalAnalysis():
                     ax.scatter(newdata[row_idx,0], newdata[row_idx,1], **tmp_arg, marker=marker, alpha=0.5, zorder=3)
             else:
                 ax.scatter(newdata[:,0], newdata[:,1], **plot_args, marker='s', zorder=3, alpha=0.5)
-        plt.show()
+        plt.savefig(f"figures/{figNamePrefix}_simplex.png", bbox_inches='tight')
             
                
     def parallel_plot(self, lst_feat, df_color, linewidth='0.3', arch_color='black'):
@@ -640,7 +644,8 @@ class ArchetypalAnalysis():
                 self.archetype_profile[j, i] = ecdf(x_data, x_arch)
                 
     
-    def plot_profile(self, allfeatNames=None, selectedFeatsIdxs=None, figSize=(14, 5), dpi=DPI):
+    def plot_profile(self, allfeatNames=None, selectedFeatsIdxs=None, 
+                     figSize=(14, 5), dpi=DPI, figNamePrefix=''):
         """
         This function plots the profile of the archetypes.
 
@@ -648,41 +653,53 @@ class ArchetypalAnalysis():
             Optional input. list of all feature names.
         selectedFeatsIdxs:
             Optional input. list of names of features of interest.
-        """               
-        plt.style.use('ggplot')
-        x_vals = np.arange(1, self.n_dim + 1)[selectedFeatsIdxs]
+        """
+        sns.set_style('ticks')
+        x_vals = np.arange(1, len(selectedFeatsIdxs) + 1)
         for i in range(self.n_archetypes):
             plt.figure(figsize=figSize, dpi=dpi)
-            plt.bar(x_vals, self.archetype_profile[selectedFeatsIdxs, i] * 100.0, color='#413F3F')
-            if (selectedFeatsIdxs != None):
+            plt.bar(x_vals, self.archetype_profile[selectedFeatsIdxs, i] * 100.0, 
+                    color='#D32F2F', edgecolor='#212121', linewidth=0.8)
+            if (allfeatNames != None):
                 plt.xticks(x_vals, [allfeatNames[idx] for idx in selectedFeatsIdxs], rotation='vertical')
-            plt.ylim([0,100])
+            plt.ylim([0, 100])
             plt.ylabel('A' + str(i + 1))
+            plt.grid(linestyle='dotted')
             plt.rcParams.update({'font.size': 10})
             plt.tight_layout()
+            plt.savefig(f"figures/{figNamePrefix}_A{i}_featProf.png", bbox_inches='tight')
             
     
-    def plot_radar_profile(self, feature_cols=None, Title='Radar plot of archetype profiles'):
-        if (feature_cols != None):
-            labels = feature_cols
-        else:
-            labels = [str(i+1) for i in range(self.n_dim)]
-        angles = np.linspace(0, 2*np.pi, self.n_dim, endpoint=False)
-        angles = np.concatenate((angles, [angles[0]])) 
-        
-        fig = plt.figure(figsize=(6, 6))
+    def plot_radar_profile(self, allfeatNames=None, selectedFeatsIdxs=[0], 
+                           showLabel=True, showName=False,
+                           figSize=(6, 6), dpi=DPI, title=None, figNamePrefix=''):
+        if len(selectedFeatsIdxs) < 1: 
+            raise Exception('selectedFeatsIdxs < 1!')
+        labels = [allfeatNames[i] for i in selectedFeatsIdxs] if showName else [f"F{i}" for i in selectedFeatsIdxs]
+        angles = np.linspace(0, 2*np.pi, len(selectedFeatsIdxs), endpoint=False)
+        angles = np.concatenate((angles, [angles[0]]))
+
+        sns.set_palette('deep')
+        fig = plt.figure(figsize=figSize, dpi=dpi)
         ax = fig.add_subplot(111, polar=True)
         legend = []
         for i in range(self.n_archetypes):
-            x_close = self.archetype_profile[:, i]
-            x_close = np.concatenate((x_close, [x_close[0]]))      
-            ax.plot(angles, x_close, 'o-', linewidth=2)
-            ax.fill(angles, x_close, alpha=0.25)
-            ax.set_thetagrids(np.array(angles) * 180.0/np.pi, ['0'] + labels)
-            ax.set_title(Title)
-            ax.grid(True)
+            x_close = self.archetype_profile[selectedFeatsIdxs, i]
+            x_close = np.concatenate((x_close, [x_close[0]]))
+            ax.plot(angles, x_close, '.-', linewidth=1, markersize=5, zorder=-1)
+            ax.fill(angles, x_close, alpha=0.2, zorder=-2)
+            # ax.set_rlabel_position(0)
+            ax.set_rticks([0.2, 0.4, 0.6, 0.8])
+            ax.set_rlim(0.0, 1.0)
+            if showLabel:
+                ax.set_thetagrids(np.array(angles) * 180.0/np.pi, [''] + labels)
+            else:
+                ax.set_thetagrids(np.array(angles) * 180.0/np.pi, [''] + [''] * len(selectedFeatsIdxs))
+            ax.set_title(title)
+            ax.grid(linestyle='dotted')
             legend.extend([f"A{str(i + 1)}", '_'])
-        ax.legend(legend)
+        ax.legend(legend, loc='center', bbox_to_anchor=(1.2, 0.5), ncol=1)
+        plt.savefig(f"figures/{figNamePrefix}_radarProf.png", bbox_inches='tight')
         
     
     def _extract_close_match(self):
@@ -1056,7 +1073,7 @@ def datapoint_profile(x_point, x_data):
     return np.array(point_profile)
 
 
-def plot_radar_datapoint(AA, X, Title='Radar plot of datapoint'):
+def plot_radar_datapoint(AA, X, title='Radar plot of datapoint'):
     # import seaborn as sns
     _, alfa_X = AA.transform(X)
     
@@ -1072,7 +1089,7 @@ def plot_radar_datapoint(AA, X, Title='Radar plot of datapoint'):
     ax.plot(angles, alfa_X, 'o-', markersize=5, linewidth=1.5, color='#273746')
     ax.fill(angles, alfa_X, alpha=0.25)
     ax.set_thetagrids(np.array(angles) * 180.0/np.pi, ['0'] + labels)
-    ax.set_title(Title)
+    ax.set_title(title)
     ax.grid(True)
     ax.set_rlim(0,1)
     ax.set_facecolor('#EAECEE')
@@ -1080,7 +1097,7 @@ def plot_radar_datapoint(AA, X, Title='Radar plot of datapoint'):
 
 
 def create_simplex_ax(AA, grid_on=True, gridcolor='#EAECEE',
-                     bordercolor='#4A235A', fontcolor='#6C3483', fig_size=(5, 5)):
+                      bordercolor='#4A235A', fontcolor='#6C3483', fig_size=(3, 3)):
         """
         # group_color = None, color = None, marker = None, size = None
         group_color:    
