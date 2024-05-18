@@ -654,7 +654,7 @@ class ArchetypalAnalysis():
             
     
     def plot_radar_profile(self, allfeatNames=None, selectedFeatsIdxs=[0], archIDs=[], 
-                           sepArchs=False, showLabel=True, showName=False,
+                           sepArchs=False, showLabel=True, labelAll=False, showName=False,
                            figSize=(6, 6), dpi=DPI, title=None, figNamePrefix=''):
 
         # Getting labels
@@ -664,30 +664,36 @@ class ArchetypalAnalysis():
         angles = np.linspace(0, 2*np.pi, len(selectedFeatsIdxs), endpoint=False)
         angles = np.concatenate((angles, [angles[0]]))
 
-        sns.set_palette('deep')
         if not sepArchs:
             fig = plt.figure(figsize=figSize, dpi=dpi)
             ax = fig.add_subplot(111, polar=True)
             legend = []
-        numArchs = self.n_archetypes if archIDs == None else len(archIDs)
-        for i in range(numArchs):
+        for (i, archID) in enumerate(range(len(archIDs))):
             if sepArchs:
                 fig = plt.figure(figsize=figSize, dpi=dpi)
                 ax = fig.add_subplot(111, polar=True)
-            x_close = self.archetype_profile[selectedFeatsIdxs, i]
+            c = sns.color_palette('husl', len(archIDs))[i]
+            x_close = self.archetype_profile[selectedFeatsIdxs, archID]
             x_close = np.concatenate((x_close, [x_close[0]]))
-            ax.plot(angles, x_close, '.-', linewidth=1, markersize=5, zorder=-1)
-            ax.fill(angles, x_close, alpha=0.2, zorder=-2)
+            ax.plot(angles, x_close, '.-', linewidth=1, markersize=5, zorder=-1, color=c)
+            ax.fill(angles, x_close, alpha=0.2, zorder=-2, color=c)
             # ax.set_rlabel_position(0)
             ax.set_rticks([0.2, 0.4, 0.6, 0.8])
             ax.set_rlim(0.0, 1.0)
             if showLabel:
-                ax.set_thetagrids(np.array(angles) * 180.0/np.pi, [''] + labels)
+                if labelAll:
+                    labelIdxs = [j for j in range(len(angles) - 1)]
+                else:  # Only label 8 standard corners
+                    labelIdxs = np.round(np.linspace(0, len(angles)-1, 9)[:-1]).astype(int)
+                ax.set_thetagrids(angles[labelIdxs] * 180.0/np.pi, [labels[idx] for idx in labelIdxs])
             else:
-                ax.set_thetagrids(np.array(angles) * 180.0/np.pi, [''] + [''] * len(selectedFeatsIdxs))
+                ax.set_thetagrids(angles * 180.0/np.pi, [''] + [''] * len(selectedFeatsIdxs))
             ax.set_title(title)
             ax.grid(linestyle='dotted')
-            legend.extend([f"A{str(i + 1)}", '_'])
+            if not sepArchs:
+                legend.extend([f"A{archID + 1}", '_'])
+            else:
+                plt.savefig(f"figures/{figNamePrefix}_radarProf_A{archID + 1}.png", bbox_inches='tight')
         if not sepArchs:
             ax.legend(legend, loc='center', bbox_to_anchor=(1.2, 0.5), ncol=1)
             plt.savefig(f"figures/{figNamePrefix}_radarProf.png", bbox_inches='tight')
