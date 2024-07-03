@@ -5,3 +5,7 @@ Potential venue:
 - SIAM International Conference on Data Mining (September 15)
 
 - Had to change the header of AuPt_nanoparticle_data.csv from 'confID' to 'ID'
+
+- Clean up IAA_demo.ipynb before pushing again
+
+- Fix the random seed issue
