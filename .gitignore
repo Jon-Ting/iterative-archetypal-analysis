@@ -159,7 +159,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-tests/*
-src/Multicore-TSNE/
-docs/data/*
-docs/PBSscripts/*
+iaa
+data/
+jobScripts/
