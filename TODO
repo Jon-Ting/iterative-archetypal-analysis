@@ -6,6 +6,12 @@ Potential venue:
 
 - Had to change the header of AuPt_nanoparticle_data.csv from 'confID' to 'ID'
 
-- Clean up IAA_demo.ipynb before pushing again
-
-- Fix the random seed issue
+- Finish datasets.py
+- Add docstrings to all functions
+- Finish documentation on Read the Docs
+- Finish README.md
+    - Finish usage
+    - Add background
+    - Add features
+    - Publish to pip
+    - Publish to conda
