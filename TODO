@@ -15,3 +15,5 @@ Potential venue:
     - Add features
     - Publish to pip
     - Publish to conda
+
+- Eventually finish the other demo notebooks under docs/archive/.
