@@ -1,0 +1,80 @@
+RSS FISTA = 18771.485
+RSS FISTA = 40933.425
+RSS FISTA = 32637.227
+RSS AS = 6030.058
+RSS AS = 5362.2237
+RSS AS = 5067.9418
+RSS AS = 4838.8205
+RSS AS = 4687.8348
+RSS AS = 4580.0677
+RSS AS = 4492.0639
+RSS AS = 4411.0058
+RSS AS = 4343.2068
+RSS AS = 4287.7618
+RSS AS = 4238.8911
+RSS AS = 4192.4257
+RSS AS = 4152.5391
+RSS AS = 4116.4832
+RSS AS = 4083.6575
+RSS AS = 4050.1209
+RSS AS = 4021.4461
+RSS AS = 3994.8901
+RSS AS = 3969.8598
+RSS AS = 3939.8699
+RSS AS = 3912.5572
+RSS AS = 3882.8313
+RSS AS = 3856.2379
+RSS AS = 3830.9623
+RSS AS = 3807.4774
+RSS AS = 3784.9874
+RSS AS = 3762.9303
+RSS AS = 3741.4117
+RSS AS = 3719.3152
+RSS AS = 3696.8506
+RSS AS = 3674.8083
+RSS AS = 3653.6433
+RSS AS = 3632.5717
+RSS AS = 3611.4369
+RSS AS = 3589.9793
+RSS AS = 3566.2654
+RSS AS = 3544.8014
+RSS AS = 3518.8262
+RSS AS = 3498.8447
+RSS AS = 3480.6799
+RSS AS = 3463.2714
+RSS AS = 3446.5562
+RSS AS = 3428.8931
+RSS AS = 3412.3993
+RSS AS = 3396.3311
+RSS AS = 3381.5739
+RSS AS = 3365.9227
+RSS AS = 3351.6168
+RSS AS = 3334.3201
+RSS AS = 3319.7267
+  Subset: MNP10S_randomSplit300Asoutput1.pkl
+  Subset: MNP10S_randomSplit300Asoutput2.pkl
+  Subset: MNP10S_randomSplit300Asoutput3.pkl
+  Subset: MNP10S_randomSplit300Asoutput4.pkl
+  Subset: MNP10S_randomSplit300Asoutput5.pkl
+  Subset: MNP10S_randomSplit300Asoutput6.pkl
+  Subset: MNP10S_randomSplit300Asoutput7.pkl
+  Subset: MNP10S_randomSplit300Asoutput8.pkl
+  Subset: MNP10S_randomSplit300Asoutput9.pkl
+  Subset: MNP10S_randomSplit300Asoutput10.pkl
+Explained variance: 0.978
+Parallel iterative archetypal analysis 10 subsets execution time: 3023.465304 s
+
+DONE!
+
+======================================================================================
+                  Resource Usage on 2024-08-23 04:24:23:
+   Job Id:             123542747.gadi-pbs
+   Project:            q27
+   Exit Status:        0
+   Service Units:      82.51
+   NCPUs Requested:    48                     NCPUs Used: 48              
+                                           CPU Time Used: 01:53:37        
+   Memory Requested:   190.0GB               Memory Used: 3.0GB           
+   Walltime requested: 48:00:00            Walltime Used: 00:51:34        
+   JobFS requested:    10.0GB                 JobFS used: 0B              
+======================================================================================
