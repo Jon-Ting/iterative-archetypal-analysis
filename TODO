@@ -17,3 +17,12 @@ Potential venue:
     - Publish to conda
 
 - Eventually finish the other demo notebooks under docs/archive/.
+
+
+- Thesis
+    - Describe/Predict the archetypes that don't contribute much to instance reconstruction
+    - Set an acceptable EV and then determine the number of archetypes that meet it, or cut off at last non-redundant one
+    - Reframe Impact to just focus on % reduction, use characterisation to demonstrate that feature space is unbiased, add scores like maximal information score or Shannon diversity index
+    - Optional: Choose a few significant features and do line plots, or just leave it to future work
+    - Leave archetype characterisation to future work.
+    - Compare IAA with conventional domain-driven approach.

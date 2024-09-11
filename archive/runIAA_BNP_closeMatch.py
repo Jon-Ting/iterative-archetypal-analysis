@@ -73,12 +73,12 @@ figNamePrefix = f"{eleComb}{numSubset}S_randomSplit"
 
 # Debugging
 # numArchetypesRange = range(100, 501, 100)
-numArchetypesRange = range(5000, 5001, 100)
+numArchetypesRange = range(3750, 3751, 100)
 with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_splitRunTimes.pkl", 'rb') as f:
     splitRunTimes = pickle.load(f)
     
 AAs = []
-with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_5000As_PIAAs.pkl", 'rb') as f:
+with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_3750As_PIAAs.pkl", 'rb') as f:
     oldAAs = pickle.load(f)
 for (i, numArchetypes) in enumerate(numArchetypesRange):
     # Obtain the final results from the outcomes of the individual archetypal analysis on the subsets
@@ -88,9 +88,10 @@ for (i, numArchetypes) in enumerate(numArchetypesRange):
                   #datasetType=f"{figNamePrefix}{numArchetypes}As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
     AA = oldAAs[i]
     AA._extractCloseMatch()
+    print(AA.closeMatch)
     AAs.append(AA)
 
-with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_5000As_PIAAs.pkl", 'wb') as f:
+with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_3750As_PIAAs.pkl", 'wb') as f:
     pickle.dump(AAs, f)
 
 print('DONE!')

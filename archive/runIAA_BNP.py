@@ -72,8 +72,7 @@ numSubset = 100
 figNamePrefix = f"{eleComb}{numSubset}S_randomSplit"
 
 # Debugging
-# numArchetypesRange = range(100, 501, 100)
-numArchetypesRange = range(5000, 5001, 100)
+numArchetypesRange = range(1800, 1801, 100)
 with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_splitRunTimes.pkl", 'rb') as f:
     splitRunTimes = pickle.load(f)
     
@@ -84,10 +83,10 @@ for (i, numArchetypes) in enumerate(numArchetypesRange):
                   robust=ROBUST, shuffle=SHUFFLE, randomState=RANDOM_STATE, 
                   datasetType=f"{figNamePrefix}500As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
                   #datasetType=f"{figNamePrefix}{numArchetypes}As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
-    # AA._extractCloseMatch()
+    AA._extractCloseMatch()
     AAs.append(AA)
 
-with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_5000As_PIAAs.pkl", 'wb') as f:
+with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_1800As_PIAAs.pkl", 'wb') as f:
     pickle.dump(AAs, f)
 
 print('DONE!')
