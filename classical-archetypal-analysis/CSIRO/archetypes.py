@@ -11,14 +11,12 @@ Breiman, Technometrics, November 1994, Vol.36, No.4, pp. 338-347
 
 from copy import copy
 from math import *
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-from scipy.optimize import nnls      
-from matplotlib import colors
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from numpy.matlib import repmat
+from scipy.optimize import nnls      
 from spams import archetypalAnalysis
 
 
@@ -94,7 +92,6 @@ class ArchetypalAnalysis():
         self.redundancy_try = redundancy_try
         self.robust = robust
 
-    
     def fit(self, X):
         self.X = X.T
         self.n_dim, self.n_data = self.X.shape
@@ -109,7 +106,6 @@ class ArchetypalAnalysis():
         self.RSS_2 = calc_SSE(self.X, self.X_approx)
         self.explained_variance_ = explained_variance(self.X, self.X_approx, method = "_")
         self._extract_archetype_profiles()
-
     
     def fit_original(self, X):
         self.X = X.T
@@ -144,13 +140,11 @@ class ArchetypalAnalysis():
         self.RSS_2 = calc_SSE(self.X, self.X_approx)
         self.explained_variance_ = explained_variance(self.X, self.X_approx, method = "_")
         self._extract_archetype_profiles()
-        
     
     def fit_transform(self,X):
         self.fit(X)
         X_approx = np.matmul(self.archetypes , self.alfa)
         return X_approx.T
-
     
     def transform(self, X_new):
         X_new_Trans = X_new.T
@@ -159,7 +153,6 @@ class ArchetypalAnalysis():
         # self.alfa, self.RSSi_ = self.__optimize_alfa_for_transform(X_new, n_data)
         X_new_Approx = np.matmul(self.archetypes , alfa_new)
         return X_new_Approx.T, alfa_new
-    
     
     def _initialize_archetypes(self):
         if self.initialize == 'random':
@@ -175,7 +168,6 @@ class ArchetypalAnalysis():
                                               + "A random initialization is selected to continue.")
                 self._random_initialize()
             
-            
     def _random_initialize(self):
         from sklearn.preprocessing import MinMaxScaler
         np.random.seed(self.random_state)
@@ -185,7 +177,6 @@ class ArchetypalAnalysis():
         self.archetypes_init_ = sc.inverse_transform(archs_norm).T
         self.archetypes = copy(self.archetypes_init_)
         
-        
     def _furthest_sum_initialize(self):   
         init = [int(np.ceil(len(range(self.n_data)) * np.random.rand()))]
         n_data_range = range(self.n_data)
@@ -193,7 +184,6 @@ class ArchetypalAnalysis():
         
         self.archetypes_init_ = self.X[:,init_arch_idx]
         self.archetypes = copy(self.archetypes_init_)
-        
     
     def _random_idx_initialize(self):
         lst_idx = []
@@ -202,7 +192,6 @@ class ArchetypalAnalysis():
             lst_idx.append(np.random.randint(self.n_data))
         self.archetypes_init_ = self.X[:,lst_idx]
         self.archetypes = copy(self.archetypes_init_)
-
     
     def __optimize_alfa_for_transform(self, X_new, n_data):
         """
@@ -248,7 +237,6 @@ class ArchetypalAnalysis():
             self.beta[:,l], _ = solve_constrained_NNLS(v_bar_l, self.X,self.C)
         return has_error
 
-    
     def _find_new_archetype(self, k):
         """
         In some circumstance, summation of alfa's for an archetype k becomes zero. 
@@ -278,7 +266,6 @@ class ArchetypalAnalysis():
             self.random_state += 10
         return self.X.T[id_max,:], id_max
   
-
     def _return_vbar_l(self, l):        
         def return_vi(i, l, alfa_il):
             """
@@ -481,7 +468,6 @@ class ArchetypalAnalysis():
                 ax.scatter(newdata[:,0], newdata[:,1], **plot_args, marker='s', zorder=3, alpha=0.5)
         plt.show()
             
-               
     def parallel_plot(self, lst_feat, df_color, linewidth = '0.3', arch_color = 'black'):
         """
         Based on source: http://benalexkeen.com/parallel-coordinates-in-matplotlib/
@@ -550,7 +536,6 @@ class ArchetypalAnalysis():
         # Remove space between subplots
         plt.subplots_adjust(wspace=0)       
         plt.show()
-        
     
     def _extract_archetype_profiles(self):
         """
@@ -564,7 +549,6 @@ class ArchetypalAnalysis():
                 x_arch = self.archetypes[j, i]
                 x_data = self.X[j, :]
                 self.archetype_profile[j, i] = ecdf(x_data, x_arch)
-                
     
     def plot_profile(self, feature_cols = None):
         """
@@ -584,7 +568,6 @@ class ArchetypalAnalysis():
             plt.ylabel('A' + str(i + 1))
             plt.rcParams.update({'font.size': 10})
             plt.tight_layout()
-            
     
     def plot_radar_profile(self, feature_cols=None, Title='Radar plot of archetype profiles'):
         if (feature_cols != None):
@@ -607,7 +590,6 @@ class ArchetypalAnalysis():
             ax.grid(True)
             legend.extend([f"A{str(i + 1)}", '_'])
         ax.legend(legend)
-        
     
     def _extract_closes_match(self):
         from scipy.spatial.distance import cdist
@@ -616,7 +598,6 @@ class ArchetypalAnalysis():
             r = cdist(self.X.T, self.archetypes[:,i].reshape(1, self.n_dim))
             i_min = np.argmin(r)
             self.close_match[i+1] = (i_min, self.alfa[:,i_min])
-            
     
     def plot_close_match(self, Title = 'Radar plot of closest matches'):
         if (len(self.close_match) == 0):
@@ -660,10 +641,8 @@ def ecdf(X, x):
     X: 
         1-D array. Vector of data points per each feature (dimension), defining
         the distribution of data along that specific dimension.
-        
     x:
         Value. It is the value of the corresponding dimension of an archetype.
-        
     P(X <= x):
         The cumulative distribution of data points with respect to the archetype
         (the probablity or how much of data in a specific dimension is covered
@@ -673,16 +652,12 @@ def ecdf(X, x):
 
 
 def calc_SSE(X_act, X_appr):
-    """
-    This function returns the Sum of Square Errors.
-    """
+    """This function returns the Sum of Square Errors."""
     return ((X_act - X_appr) ** 2).sum()
 
 
 def calc_SST(X_act):
-    """
-    This function returns the Sum of Square Errors.
-    """
+    """This function returns the Sum of Square Errors."""
     return (X_act ** 2).sum()
 
 
@@ -708,7 +683,6 @@ def solve_constrained_NNLS(u, t, C):
     Note that the above equation is a typical equation in solving alfa's and
     beta's.
     
-    
     Solving for ALFA's:
     -------------------
     when solving for alfa's the following equation should be minimised:
@@ -724,7 +698,6 @@ def solve_constrained_NNLS(u, t, C):
         U (Xi):         It is a 1D-array of n_dim x 1 dimension.
         T (Z):          It is a 2D-array of n_dim x k dimension.
         W (alfa):       It is a 1D-array of k x 1 dimension.
-    
     
     Solving for BETA's:
     -------------------   
@@ -746,32 +719,22 @@ def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
                 fig_args = {'figsize':(8,8),'facecolor':'white','edgecolor':'white'},
                 grid_on = True
         ):
-    '''
+    """
     source: https://stackoverflow.com/questions/701429/library-tool-for-drawing-ternary-triangle-plots
-    
     This will create a basic "ternary" plot (or quaternary, etc.)
-    
     DATA:           The dataset to plot. To show data-points in terms of archetypes
                     the alfa matrix should be provided.
-    
     SCALING:        Scales the data for ternary plot such that the components along
                     each axis dimension sums to 1. This conditions is already imposed 
                     on alfas for archetypal analysis.
-    
     start_angle:    Direction of first vertex.
-    
     rotate_labels:  Orient labels perpendicular to vertices.
-    
     labels:         Labels for vertices.
-    
     sides:          Can accomodate more than 3 dimensions if desired.
-    
     label_offset:   Offset for label from vertex (percent of distance from origin).
-    
     edge_args:      Any matplotlib keyword args for plots.
-    
     fig_args:       Any matplotlib keyword args for figures.
-    '''
+    """
     basis = np.array(
                     [
                         [
@@ -790,7 +753,7 @@ def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
         # Assumes data already sums to 1.
         newdata = np.dot(data,basis)
 
-#    fig = plt.figure(**fig_args)
+    # fig = plt.figure(**fig_args)
     fig = plt.figure(figsize=(10,10))
     ax = fig.add_subplot(111)
 
@@ -829,7 +792,7 @@ def ternaryPlot(data, scaling=True, start_angle=90, rotate_labels=True,
                 ignore = True
             else:
                 ignore = False                        
-#                
+
             if not (ignore):
 #            if (j!=i & j!=i+1 & j != i-1):                        
                 lst_ax_0.append(basis[i,0] + [0,])
@@ -983,7 +946,6 @@ def datapoint_profile(x_point, x_data):
 
 
 def plot_radar_datapoint(AA, X, Title='Radar plot of datapoint'):
-    # import seaborn as sns
     _, alfa_X = AA.transform(X)
     
     labels = ['A' + str(i+1) for i in range(AA.n_archetypes)]
@@ -1094,9 +1056,7 @@ def create_simplex_ax(AA, grid_on=True, gridcolor='#EAECEE',
 
 
 def map_alfa_to_simplex(alfa, AA):
-    """
-    alfa:    2D-array (n_archetypes x n_data)
-    """
+    """alfa:    2D-array (n_archetypes x n_data)"""
     n_archetypes = AA.n_archetypes
     basis = np.array(
                         [
@@ -1109,22 +1069,3 @@ def map_alfa_to_simplex(alfa, AA):
                     )
     mapped_alfa = np.dot(alfa.T,basis)
     return mapped_alfa
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-       
-
-
