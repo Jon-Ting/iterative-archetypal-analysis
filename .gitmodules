@@ -1,0 +1,6 @@
+[submodule "reduced-np-regression"]
+	path = reduced-np-regression
+	url = git@github.com:Jon-Ting/metal-nanoparticle-energy-regression.git
+[submodule "iteraa"]
+	path = iteraa
+	url = git@github.com:Jon-Ting/iteraa.git
