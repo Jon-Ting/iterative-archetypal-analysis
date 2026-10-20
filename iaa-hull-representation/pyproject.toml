@@ -1,0 +1,26 @@
+[project]
+name = "iaa-hull-representation-experiments"
+version = "0.1.0"
+description = "Jupyter notebooks exploring how well convex hull representations of whole data support regression."
+authors = [
+    {name = "Jonathan Yik Chang Ting"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.9.1",
+    "seaborn>=0.13.2",
+    "pandas>=2.2.2",
+    "scikit-learn>=1.5.1",
+    "scipy>=1.14.0",
+    "numpy>=1.26.4",
+    "xgboost>=2.0.2",
+    "spams-bin>=2.6.10",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.29.4",
+    "nbconvert>=7.16.4",
+]
