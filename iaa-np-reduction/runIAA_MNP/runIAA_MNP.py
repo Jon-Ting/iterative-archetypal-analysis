@@ -1,18 +1,17 @@
+import pickle
 from os import chdir, getcwd
 from pathlib import Path
-import pickle
 
 import numpy as np
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
-chdir('/scratch/q27/jt5911/iterative-archetypal-analysis/iaa/docs')
-import iaa
-from iaa.piaa import ArchetypalAnalysis, subsetSplit, submitAAjobs, runAA, fitPIAA
+chdir("/scratch/p00/jt5911/iterative-archetypal-analysis")
+from iteraa.piaa import fitPIAA
 
 FIG_SIZE, DPI = (7, 4), None
-CONT_PALETTE, QUAL_PALETTE = 'viridis', 'tab10'
-sns.set_style('ticks')
+CONT_PALETTE, QUAL_PALETTE = "viridis", "tab10"
+sns.set_style("ticks")
 
 # General variables
 DATA_DIR = f"{getcwd()}/data"
@@ -36,28 +35,49 @@ STEPS_AS = 50  # Number of steps for active set algorithm
 RANDOM_INIT = False  # Whether to initialise the archetypes randomly
 
 # Directory paths
-SUBSETS_PICKLES_PATH = 'data/subsetsDataPKLs'
-OUTPUTS_PICKLES_PATH = 'data/subsetsOutputsPKLs'
-FIGS_DIR_PATH = 'figs'
-JOBSCRIPTS_DIR_PATH = "jobScripts"
-AA_SCRIPT_PATH = '/scratch/q27/jt5911/iterative-archetypal-analysis/iaa/src/iaa/runAA.py'
+OUTPUTS_PICKLES_PATH = "data/subsetsOutputsPKLs"
 
 # Set random seed
 np.random.seed(RANDOM_STATE)
 
 
-def runPIAA2(Xscaled, numArchetypes=4, numSubset=4, onlyZ=False,
-             robust=False, shuffle=True, randomState=RANDOM_STATE, 
-             datasetType='uniformSquare', verbose=False, splitRunTime=0.0):
-    AA = fitPIAA(Xscaled, nArchetypes=numArchetypes, numSubset=numSubset, 
-                 dataName=datasetType, outputsPicklesPath=OUTPUTS_PICKLES_PATH, 
-                 shuffle=shuffle, robust=robust, onlyZ=onlyZ, C=0.0001, tolerance=TOLERANCE, 
-                 computeXtX=COMPUTE_XTX, stepsFISTA=STEPS_FISTA, stepsAS=STEPS_AS, randominit=RANDOM_INIT, 
-                 randomState=randomState, numThreads=NUM_JOBS, splitRunTime=splitRunTime, verbose=verbose)
+def runPIAA2(
+    Xscaled,
+    numArchetypes=4,
+    numSubset=4,
+    onlyZ=False,
+    robust=False,
+    shuffle=True,
+    randomState=RANDOM_STATE,
+    datasetType="uniformSquare",
+    verbose=False,
+    splitRunTime=0.0,
+):
+    AA = fitPIAA(
+        Xscaled,
+        nArchetypes=numArchetypes,
+        numSubset=numSubset,
+        dataName=datasetType,
+        outputsPicklesPath=OUTPUTS_PICKLES_PATH,
+        shuffle=shuffle,
+        robust=robust,
+        onlyZ=onlyZ,
+        C=0.0001,
+        tolerance=TOLERANCE,
+        computeXtX=COMPUTE_XTX,
+        stepsFISTA=STEPS_FISTA,
+        stepsAS=STEPS_AS,
+        randominit=RANDOM_INIT,
+        randomState=randomState,
+        numThreads=NUM_JOBS,
+        splitRunTime=splitRunTime,
+        verbose=verbose,
+    )
     if verbose:
-        print(f"Parallel iterative archetypal analysis {numSubset} subsets execution time: {AA.runTime:.6f} s\n")
+        print(
+            f"Parallel iterative archetypal analysis {numSubset} subsets execution time: {AA.runTime:.6f} s\n"
+        )
     return AA
-
 
 
 # Load data
@@ -66,14 +86,13 @@ def runPIAA2(Xscaled, numArchetypes=4, numSubset=4, onlyZ=False,
 # n = 9300, m = 134 feature matrix once the non-feature columns are dropped.
 _LABEL_COLS = ("Total_E", "Formation_E", "Ele", "eleComb")
 _MNP_DATA_PATH = (
-    Path(getcwd()).parents[1]
-    / "reduced-np-regression" / "data" / "MNP_E_DF.pkl"
+    Path(getcwd()).parents[1] / "reduced-np-regression" / "data" / "MNP_E_DF.pkl"
 )
-with open(_MNP_DATA_PATH, 'rb') as f:
+with open(_MNP_DATA_PATH, "rb") as f:
     _raw_df = pickle.load(f)
 _drop = [c for c in _LABEL_COLS if c in _raw_df.columns]
 MNPFeatsDF = _raw_df.drop(columns=_drop)
-eleComb = 'MNP'
+eleComb = "MNP"
 
 # Standardise data
 sc = StandardScaler()
@@ -84,21 +103,30 @@ figNamePrefix = f"{eleComb}{numSubset}S_randomSplit"
 
 # Debugging
 # numArchetypesRange = range(50, 301, 50)
-numArchetypesRange = range(250, 251, 100)
-with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_splitRunTimes.pkl", 'rb') as f:
+numArchetypesRange = range(500, 551, 100)
+with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_splitRunTimes.pkl", "rb") as f:
     splitRunTimes = pickle.load(f)
-    
+
 AAs = []
-for (i, numArchetypes) in enumerate(numArchetypesRange):
+for i, numArchetypes in enumerate(numArchetypesRange):
     # Obtain the final results from the outcomes of the individual archetypal analysis on the subsets
-    AA = runPIAA2(Xscaled, numArchetypes=numArchetypes, numSubset=numSubset, onlyZ=False,
-                  robust=ROBUST, shuffle=SHUFFLE, randomState=RANDOM_STATE, 
-                  datasetType=f"{figNamePrefix}300As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
-                  #datasetType=f"{figNamePrefix}{numArchetypes}As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
+    AA = runPIAA2(
+        Xscaled,
+        numArchetypes=numArchetypes,
+        numSubset=numSubset,
+        onlyZ=False,
+        robust=ROBUST,
+        shuffle=SHUFFLE,
+        randomState=RANDOM_STATE,
+        datasetType=f"{figNamePrefix}500As",
+        verbose=VERBOSE,
+        splitRunTime=splitRunTimes[i],
+    )
+    # datasetType=f"{figNamePrefix}{numArchetypes}As", verbose=VERBOSE, splitRunTime=splitRunTimes[i])
     AA._extractCloseMatch()
     AAs.append(AA)
 
-with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_250As_PIAAs.pkl", 'wb') as f:
+with open(f"{OUTPUTS_PICKLES_PATH}/{figNamePrefix}_500As_PIAAs.pkl", "wb") as f:
     pickle.dump(AAs, f)
 
-print('DONE!')
+print("DONE!")
