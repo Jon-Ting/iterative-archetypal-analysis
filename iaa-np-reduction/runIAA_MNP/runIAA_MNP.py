@@ -1,4 +1,5 @@
 from os import chdir, getcwd
+from pathlib import Path
 import pickle
 
 import numpy as np
@@ -60,13 +61,23 @@ def runPIAA2(Xscaled, numArchetypes=4, numSubset=4, onlyZ=False,
 
 
 # Load data
-with open(f"{DATA_DIR}/MNPFeatsDF.pkl", 'rb') as f:
-    MNPFeatsDF = pickle.load(f)
+# MNP_E_DF.pkl (134 features + Total_E + Formation_E) is used in place of the
+# legacy MNPFeatsDF.pkl (134 features + Ele).  Both reduce to the same
+# n = 9300, m = 134 feature matrix once the non-feature columns are dropped.
+_LABEL_COLS = ("Total_E", "Formation_E", "Ele", "eleComb")
+_MNP_DATA_PATH = (
+    Path(getcwd()).parents[1]
+    / "reduced-np-regression" / "data" / "MNP_E_DF.pkl"
+)
+with open(_MNP_DATA_PATH, 'rb') as f:
+    _raw_df = pickle.load(f)
+_drop = [c for c in _LABEL_COLS if c in _raw_df.columns]
+MNPFeatsDF = _raw_df.drop(columns=_drop)
 eleComb = 'MNP'
 
 # Standardise data
 sc = StandardScaler()
-Xscaled = sc.fit_transform(MNPFeatsDF.iloc[:, :-1])
+Xscaled = sc.fit_transform(MNPFeatsDF.to_numpy())
 
 numSubset = 10
 figNamePrefix = f"{eleComb}{numSubset}S_randomSplit"
