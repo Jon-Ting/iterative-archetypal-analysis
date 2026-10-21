@@ -44,7 +44,7 @@ Production configuration: `k = 10`, `p1 = 300`, `p2 = 250`.
 ## Step 0 — what you need
 
 * An NCI Gadi account with access to the project you will charge (the scripts default
-  to project `q27`, queue `normal`).
+  to project `p00`, queue `normal`).
 * The code and the dataset (Step 1).
 * A Python ≥ 3.11 with `spams` (Step 2) — Gadi's default `python3/3.10.4` module is
   **too old** for this project.
@@ -60,7 +60,7 @@ From your laptop:
 ```bash
 rsync -av --exclude '.venv' --exclude '__pycache__' --exclude '.git' \
   /path/to/iterative-archetypal-analysis/ \
-  <user>@gadi.nci.org.au:/scratch/q27/<user>/iterative-archetypal-analysis/
+  <user>@gadi.nci.org.au:/scratch/p00/<user>/iterative-archetypal-analysis/
 ```
 
 `--exclude '.venv'` matters: the virtual environment on your laptop is built for its own
@@ -86,7 +86,7 @@ module avail python3          # pick a >= 3.11 build, e.g. python3/3.11.x
 module load python3/3.11.x    # if the newest module is older (3.10.x), skip this and
                               # let uv supply its own 3.11 below
 
-cd /scratch/q27/<user>/iterative-archetypal-analysis/iteraa
+cd /scratch/p00/<user>/iterative-archetypal-analysis/iteraa
 curl -LsSf https://astral.sh/uv/install.sh | sh     # if `uv` is not already there
 export PATH="$HOME/.local/bin:$PATH"
 
@@ -112,7 +112,7 @@ python3 -m venv .venv
 ## Step 3 — smoke test (about a minute, on the login node)
 
 ```bash
-cd /scratch/q27/<user>/iterative-archetypal-analysis/iaa-np-reduction/runIAA_MNP
+cd /scratch/p00/<user>/iterative-archetypal-analysis/iaa-np-reduction/runIAA_MNP
 ../../iteraa/.venv/bin/python -u benchmarkTimingMNP.py \
     --nSamples 930 --p1 10 --p2Sweep 5,10 --workers 4 --repeat 1 --no-raa \
     --outdir /tmp/smoke_mnp
@@ -124,13 +124,13 @@ and four files in `/tmp/smoke_mnp`. If that works, the cluster run will work.
 ## Step 4 — dry run, then submit
 
 ```bash
-cd /scratch/q27/<user>/iterative-archetypal-analysis/iaa-np-reduction/runIAA_MNP
+cd /scratch/p00/<user>/iterative-archetypal-analysis/iaa-np-reduction/runIAA_MNP
 
 ./submitBenchmarkTimingMNP.sh --dry-run \
     -c 12 -w 04:00:00 -m 16GB \
     --raa-threads 10 --raa-repeats 3 \
     --sweep 100:250:500:1000 \
-    -p /scratch/q27/<user>/iterative-archetypal-analysis/iteraa/.venv/bin/python
+    -p /scratch/p00/<user>/iterative-archetypal-analysis/iteraa/.venv/bin/python
 ```
 
 The dry run prints the exact `qsub` command and submits nothing. Check it, then drop
@@ -143,7 +143,7 @@ Recommended production command:
     -c 12 -w 04:00:00 -m 16GB \
     --raa-threads 10 --raa-repeats 3 \
     --sweep 100:250:500:1000 \
-    -p /scratch/q27/<user>/iterative-archetypal-analysis/iteraa/.venv/bin/python \
+    -p /scratch/p00/<user>/iterative-archetypal-analysis/iteraa/.venv/bin/python \
     -M <your.email@anu.edu.au>
 ```
 
@@ -162,7 +162,7 @@ The driver refuses to submit a configuration that cannot work (non-numeric argum
 |---|---|---|
 | `-n`, `--dry-run` | off | print the `qsub` command, submit nothing |
 | `-q`, `--queue` | `normal` | PBS queue |
-| `-P`, `--project` | `q27` | PBS project |
+| `-P`, `--project` | `p00` | PBS project |
 | `-N`, `--name` | `iaaTimingMNP` | job name |
 | `-c`, `--ncpus` | 48 | cores to request (10 are actually used; 12 is enough) |
 | `-w`, `--walltime` | `12:00:00` | walltime to request |
@@ -189,7 +189,7 @@ The driver refuses to submit a configuration that cannot work (non-numeric argum
 ### If you use a different project
 
 `-P` sets the project, but `runBenchmarkTimingMNP.sh` still asks for
-`#PBS -l storage=scratch/q27`. If you are not in `q27`, edit that line in the job
+`#PBS -l storage=scratch/p00`. If you are not in `p00`, edit that line in the job
 script as well, otherwise the job requests scratch it cannot use.
 
 ## Step 5 — monitor
@@ -267,7 +267,7 @@ cores for the same work is ~0.7 SU.
 
 | Message | Cause | Fix |
 |---|---|---|
-| `ERROR: ... cannot import numpy/pandas/scikit-learn/spams` | the job's interpreter lacks the dependencies | pass `-p /scratch/q27/<user>/.../iteraa/.venv/bin/python` (the driver checks this before submitting) |
+| `ERROR: ... cannot import numpy/pandas/scikit-learn/spams` | the job's interpreter lacks the dependencies | pass `-p /scratch/p00/<user>/.../iteraa/.venv/bin/python` (the driver checks this before submitting) |
 | `ERROR: --sweep value 3000 must satisfy 0 < p2 < k*p1 = 3000; see comment R1.2` | more archetypes than the intermediate samples | lower `--p2`/`--sweep`, or raise `--p1`/`-k` (the `p2 > k*p1` regime is a separate manuscript comment) |
 | `ERROR: --workers (50) exceeds --ncpus (12)` | more workers than cores | raise `-c` or lower `-W` |
 | `qsub not found` | you are on a compute node, not a login node | run it from the login node |
@@ -278,7 +278,7 @@ cores for the same work is ~0.7 SU.
 
 `runIAA_MNP.py`, `iaa-np-reduction/runIAA_BNP/runBNP.sh` and `iaa-scripts/runAAs.sh` are
 the **original production scripts** that produced the `.out` records in this repository.
-They hard-code the original author's scratch paths (`/scratch/q27/jt5911/...`), load the
+They hard-code the original author's scratch paths (`/scratch/p00/jt5911/...`), load the
 pre-`iteraa` package name `iaa`, and expect the per-subset AA outputs to be submitted as
 one PBS job per subset. They are not needed for the timing benchmark above, and they need
 their paths and interpreter updated before they will run on a different account.

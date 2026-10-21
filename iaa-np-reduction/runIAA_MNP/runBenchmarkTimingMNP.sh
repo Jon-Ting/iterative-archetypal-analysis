@@ -1,8 +1,8 @@
 #!/bin/bash
-#PBS -P q27
+#PBS -P p00
 #PBS -q normal
 #PBS -l ncpus=48,walltime=12:00:00,mem=32GB,jobfs=1GB
-#PBS -l storage=scratch/q27
+#PBS -l storage=scratch/p00
 #PBS -l wd
 #PBS -M Jonathan.Ting@anu.edu.au
 #PBS -m a
@@ -61,15 +61,10 @@
 #
 # Interpreter: iteraa requires Python >= 3.11 and spams. Pass a virtual
 # environment that has both, either through the driver (-p) or directly:
-#   qsub -v PYTHON=/scratch/q27/jt5911/iterative-archetypal-analysis/iteraa/.venv/bin/python \
+#   qsub -v PYTHON=/scratch/p00/jt5911/iterative-archetypal-analysis/iteraa/.venv/bin/python \
 #        runBenchmarkTimingMNP.sh
 
 set -euo pipefail
-
-# Optional environment module. Empty by default: `module load python3/3.10.4`
-# cannot satisfy iteraa's Python >= 3.11 requirement, so the venv interpreter is
-# the reliable path. Set MODULE=python3/3.11.9 (or whatever this cluster
-# provides) if it ships spams.
 if [[ -n "${MODULE:-}" ]]; then
     if command -v module >/dev/null 2>&1; then
         # shellcheck disable=SC1091

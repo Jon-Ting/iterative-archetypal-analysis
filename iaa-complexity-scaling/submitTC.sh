@@ -12,7 +12,7 @@
 #
 # Adjust PROJECT, WALLTIME, NCPUS, and MEM as appropriate for your allocation.
 
-PROJECT="q27"
+PROJECT="p00"
 QUEUE="normal"
 NCPUS=48
 WALLTIME_SHORT="01:00:00"    # for small n

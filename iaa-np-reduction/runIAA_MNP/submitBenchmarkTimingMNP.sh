@@ -25,13 +25,13 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PBS_SCRIPT="$SCRIPT_DIR/runBenchmarkTimingMNP.sh"
 
 QUEUE=normal
-PROJECT=q27
+PROJECT=p00
 NAME=iaaTimingMNP
 NCPUS=48
 WALLTIME=12:00:00
 MEM=32GB
 JOBFS=1GB
-EMAIL=Jonathan.Ting@anu.edu.au
+EMAIL=jonathant@diversityarrays.com
 
 K=10
 P1=300
@@ -58,13 +58,13 @@ usage() {
 Options (defaults in brackets):
   -n, --dry-run            print the qsub command and exit
   -q, --queue QUEUE        PBS queue                        [normal]
-  -P, --project PROJECT    PBS project                      [q27]
+  -P, --project PROJECT    PBS project                      [p00]
   -N, --name NAME          job name                         [iaaTimingMNP]
   -c, --ncpus N            cores requested                  [48]
   -w, --walltime HH:MM:SS  walltime                         [12:00:00]
   -m, --mem SIZE           memory                           [32GB]
       --jobfs SIZE         job filesystem                   [1GB]
-  -M, --email ADDRESS      notification address             [Jonathan.Ting@anu.edu.au]
+  -M, --email ADDRESS      notification address             [jonathant@diversityarrays.com]
       --no-email           suppress email notifications
   -k, --subsets K          number of subsets                [10]
       --p1 N               intermediate archetypes          [300]
