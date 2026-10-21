@@ -24,3 +24,6 @@ venv/
 
 # Nested Git repository
 metal-nanoparticle-energy-regression/
+
+# Manuscripts
+iaa-manuscripts/
