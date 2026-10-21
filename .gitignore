@@ -22,8 +22,8 @@ venv/
 # Extensions
 .qodo
 
-# Nested Git repository
-metal-nanoparticle-energy-regression/
-
 # Manuscripts
 iaa-manuscripts/
+
+# HPC Results
+iaa-np-reduction/runIAA_MNP/timingBenchmarkMNP_results/
