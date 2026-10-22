@@ -5,7 +5,7 @@ description = "Demo Jupyter notebooks for archetypal analysis image and complexi
 authors = [
     {name = "Jonathan Yik Chang Ting"},
 ]
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "matplotlib>=3.9.1",
@@ -15,10 +15,13 @@ dependencies = [
     "scikit-learn>=1.5.1",
     "numpy>=1.26.4",
     "pillow>=10.4.0",
-    "spams>=3.12.0",
+    "spams>=2.0",
     "scipy>=1.10.0",
     "iteraa>=0.2.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["runSS", "runTC_*", "plot*", "runWS", "runTC_IAA", "runTC_2D", "runTC_RAA"]
 
 [dependency-groups]
 dev = [
