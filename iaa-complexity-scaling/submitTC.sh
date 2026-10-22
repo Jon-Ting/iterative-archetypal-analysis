@@ -62,7 +62,14 @@ submit_job() {
 #PBS -M ${EMAIL}
 #PBS -m abe
 
-module load python3/3.10.4
+module load python3/3.11.7
+
+# Activate virtual environment if available
+VENV="${SCRIPT_DIR}/.venv"
+if [ -f "${VENV}/bin/activate" ]; then
+    echo "Activating virtual environment"
+    source "${VENV}/bin/activate"
+fi
 
 cd ${SCRIPT_DIR}
 python3 ${script} ${n} ${out_file}
@@ -107,7 +114,14 @@ if [[ "$MODE" == "all" || "$MODE" == "2d" ]]; then
 #PBS -M ${EMAIL}
 #PBS -m abe
 
-module load python3/3.10.4
+module load python3/3.11.7
+
+# Activate virtual environment if available
+VENV="${SCRIPT_DIR}/.venv"
+if [ -f "${VENV}/bin/activate" ]; then
+    echo "Activating virtual environment"
+    source "${VENV}/bin/activate"
+fi
 
 cd ${SCRIPT_DIR}
 python3 runTC_2D.py
@@ -135,7 +149,14 @@ submit_ss_job() {
 #PBS -M ${EMAIL}
 #PBS -m abe
 
-module load python3/3.10.4
+module load python3/3.11.7
+
+# Activate virtual environment if available
+VENV="${SCRIPT_DIR}/.venv"
+if [ -f "${VENV}/bin/activate" ]; then
+    echo "Activating virtual environment"
+    source "${VENV}/bin/activate"
+fi
 
 cd ${SCRIPT_DIR}
 python3 runSS.py ${n_nodes} ${NCPUS} ${OUTPUT_DIR}/SS_VX_${total_cpus}.out
@@ -183,7 +204,14 @@ if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
 #PBS -M ${EMAIL}
 #PBS -m abe
 
-module load python3/3.10.4
+module load python3/3.11.7
+
+# Activate virtual environment if available
+VENV="${SCRIPT_DIR}/.venv"
+if [ -f "${VENV}/bin/activate" ]; then
+    echo "Activating virtual environment"
+    source "${VENV}/bin/activate"
+fi
 
 cd ${SCRIPT_DIR}
 python3 runWS.py ${ncpus} ${n_subsets} ${n_samples} ${num_threads} ${WS_OUTPUT_DIR}/WS_VX_${ncpus}.out
