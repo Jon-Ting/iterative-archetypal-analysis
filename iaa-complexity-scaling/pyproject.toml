@@ -17,7 +17,6 @@ dependencies = [
     "pillow>=10.4.0",
     "spams>=2.0",
     "scipy>=1.10.0",
-    "iteraa>=0.2.0",
 ]
 
 [tool.setuptools.packages.find]
