@@ -46,6 +46,11 @@ submit_job() {
     local walltime=$(walltime_for_n $n)
 
     local pbs_script="${JOBSCRIPTS_DIR}/${job_name}_${n}.pbs"
+    # Skip if output file already exists
+    if [ -f "${out_file}" ]; then
+        echo "  Skipping ${job_name} n=${n} — output already exists at ${out_file}"
+        return 0
+    fi
     cat > "${pbs_script}" << PBS
 #!/bin/bash
 #PBS -N ${job_name}_${n}
