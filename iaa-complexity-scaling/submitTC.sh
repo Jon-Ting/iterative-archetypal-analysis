@@ -18,7 +18,7 @@ NCPUS=48
 WALLTIME_SHORT="01:00:00"    # for small n
 WALLTIME_LONG="05:00:00"     # for n >= 1600
 MEM=120                       # GB
-EMAIL="Jonathan.Ting@anu.edu.au"
+EMAIL="jonathant@diversityarrays.com"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/computationalComplexity"
@@ -90,7 +90,7 @@ fi
 # Submit the 2D benchmark (Table 1)
 if [[ "$MODE" == "all" || "$MODE" == "2d" ]]; then
     echo "=== Submitting 2D benchmark ==="
-    local pbs_script="${JOBSCRIPTS_DIR}/TC_2D.pbs"
+    pbs_script="${JOBSCRIPTS_DIR}/TC_2D.pbs"
     cat > "${pbs_script}" << PBS
 #!/bin/bash
 #PBS -N TC_2D
