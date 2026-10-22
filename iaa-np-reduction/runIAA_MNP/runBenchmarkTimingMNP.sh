@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -P p00
 #PBS -q normal
-#PBS -l ncpus=48,walltime=12:00:00,mem=32GB,jobfs=1GB
+#PBS -l ncpus=12,walltime=24:00:00,mem=16GB,jobfs=1GB
 #PBS -l storage=scratch/p00
 #PBS -l wd
 #PBS -M Jonathan.Ting@anu.edu.au
@@ -91,6 +91,7 @@ RAA_REPEATS=${RAA_REPEATS:-1}
 LABEL=${LABEL:-MNP}
 OUTDIR=${OUTDIR:-timingBenchmarkMNP_results}
 DATA=${DATA:-}
+RESUME=${RESUME:-1}
 
 # Pin BLAS/OpenMP pools to the per-call thread count: one thread per subset by
 # default (the layout Eq. (4) describes, P >= k), or THREADS for a control run.
@@ -102,6 +103,13 @@ export NUMEXPR_NUM_THREADS=$THREADS
 
 DATA_ARGS=()
 [[ -n "$DATA" ]] && DATA_ARGS=(--data "$DATA")
+
+RESUME_ARGS=()
+if [[ "$RESUME" == "1" ]]; then
+    RESUME_ARGS=(--resume)
+else
+    RESUME_ARGS=(--no-resume)
+fi
 
 if [[ "$RAA" == "1" ]]; then
     RAA_ARGS=(--raa --raaThreads "$RAA_THREADS" --raaRepeats "$RAA_REPEATS")
@@ -143,7 +151,8 @@ echo "Config    : k=$K p1=$P1 p2=$P2 sweep=$P2_SWEEP workers=$WORKERS threads=$T
     --k "$K" --p1 "$P1" --p2 "$P2" --p2Sweep "$P2_SWEEP" \
     --workers "$WORKERS" --threads "$THREADS" \
     --repeat "$REPEAT" \
+    "${RESUME_ARGS[@]}" \
     "${RAA_ARGS[@]}" "${DATA_ARGS[@]}" \
-    | tee "${OUTDIR}/${LABEL}_benchmark.out"
+    | tee -a "${OUTDIR}/${LABEL}_benchmark.out"
 
 echo "Finished  : $(date -u +%Y-%m-%dT%H:%M:%SZ)"

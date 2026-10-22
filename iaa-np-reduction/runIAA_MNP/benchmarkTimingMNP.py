@@ -386,11 +386,51 @@ def benchmarkIAA(X: np.ndarray, args, cfg: dict, p2List: list[int]) -> list[dict
     return records
 
 
-def benchmarkRAA(X: np.ndarray, args, cfg: dict, p2List: list[int]) -> list[dict]:
+def saveCheckpoint(
+    partialPath: Path,
+    args,
+    records: list[dict],
+    raaRecords: list[dict],
+) -> None:
+    """Save an atomic checkpoint of both IAA and RAA records."""
+    tmpPath = partialPath.with_suffix(".tmp")
+    cfgDict = {k: v for k, v in vars(args).items() if not k.startswith("_")}
+    with open(tmpPath, "w") as f:
+        json.dump(
+            {"configuration": cfgDict, "iaa": records, "raa": raaRecords},
+            f,
+            indent=2,
+            default=str,
+        )
+    tmpPath.replace(partialPath)
+
+
+def benchmarkRAA(
+    X: np.ndarray,
+    args,
+    cfg: dict,
+    p2List: list[int],
+    existingRecords: list[dict] | None = None,
+    partialPath: Path | None = None,
+) -> list[dict]:
     """Standard (non-iterative) AA on the full dataset, once per p2."""
-    records = []
+    records = list(existingRecords) if existingRecords is not None else []
     for p2 in p2List:
         for repeat in range(args.raaRepeats):
+            already = [
+                rec
+                for rec in records
+                if rec.get("nArchetypes") == p2 and rec.get("repeat") == repeat
+            ]
+            if already:
+                rec = already[0]
+                print(
+                    f"RESULT resume raa n={rec.get('nSamples', X.shape[0])} p2={p2} "
+                    f"threads={rec.get('threads', cfg['threads'])} repeat={repeat} "
+                    f"time={rec['time_s']:.3f} s EV={rec['explainedVariance']:.4f} (skipped)"
+                )
+                continue
+
             out = runAA(X, p2, cfg)
             ev = explainedVariance(X, out["Z"], out["A"])
             print(
@@ -407,6 +447,14 @@ def benchmarkRAA(X: np.ndarray, args, cfg: dict, p2List: list[int]) -> list[dict
                     "explainedVariance": ev,
                 }
             )
+            if partialPath is not None:
+                saveCheckpoint(
+                    partialPath,
+                    args,
+                    getattr(args, "_iaaRecords", []),
+                    records,
+                )
+                print(f"RESULT checkpoint RAA p2={p2} repeat={repeat + 1} -> {partialPath}")
     return records
 
 
@@ -688,6 +736,21 @@ def parseArgs(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--warmup", dest="warmup", action="store_true", default=True)
     parser.add_argument("--no-warmup", dest="warmup", action="store_false")
 
+    # Checkpointing and resume
+    parser.add_argument(
+        "--resume",
+        dest="resume",
+        action="store_true",
+        default=True,
+        help="resume from partial checkpoint in outdir if available",
+    )
+    parser.add_argument(
+        "--no-resume",
+        dest="resume",
+        action="store_false",
+        help="ignore existing partial checkpoint and run from scratch",
+    )
+
     args = parser.parse_args(argv)
     args.p2Sweep = sorted({int(x) for x in args.p2Sweep.split(",") if x.strip()})
     args.raaP2 = sorted({int(x) for x in args.raaP2.split(",") if x.strip()}) or args.p2Sweep
@@ -757,27 +820,57 @@ def main(argv: list[str] | None = None) -> int:
         runAA(X[: min(50, args.nSamplesUsed), :], min(2, 49), cfg)
 
     Path(args.outdir).mkdir(parents=True, exist_ok=True)
+    partial = Path(args.outdir) / f"timingBenchmark_{args.label}_partial.json"
     records = []
+    raaRecords = []
+    if args.resume and partial.exists():
+        try:
+            with open(partial) as f:
+                saved = json.load(f)
+            records = saved.get("iaa", [])
+            raaRecords = saved.get("raa", [])
+            print(
+                f"Resuming from {partial}: loaded {len(records)} IAA records, "
+                f"{len(raaRecords)} RAA records"
+            )
+        except Exception as e:
+            print(f"Warning: could not load checkpoint {partial} ({e}); starting from scratch")
+            records, raaRecords = [], []
+
     for repeat in range(args.repeat):
         args.repeatIndex = repeat
+        p2Done = {rec["p2"] for rec in records if rec.get("repeat") == repeat}
+        if set(args.p2Sweep).issubset(p2Done):
+            print(
+                f"\n=== IAA repeat {repeat + 1}/{args.repeat} "
+                "(already completed in checkpoint, skipping) ==="
+            )
+            continue
+
         print(f"\n=== IAA repeat {repeat + 1}/{args.repeat} ===")
+        # Remove any partial records for this repeat if it wasn't complete
+        records = [rec for rec in records if rec.get("repeat") != repeat]
         records.extend(benchmarkIAA(X, args, cfg, args.p2Sweep))
         # Checkpoint after each repeat: a long job can be killed at the walltime
         # limit, and the stages already measured are still useful.
-        partial = Path(args.outdir) / f"timingBenchmark_{args.label}_partial.json"
-        with open(partial, "w") as f:
-            json.dump({"configuration": vars(args), "iaa": records}, f,
-                      indent=2, default=str)
+        saveCheckpoint(partial, args, records, raaRecords)
         print(f"RESULT checkpoint repeat={repeat + 1} -> {partial}")
 
-    raaRecords = []
+    args._iaaRecords = records
     if args.raa:
         print(
             f"\n=== Standard AA baseline (p2 = {args.raaP2}, "
             f"threads = {args.raaThreads}) ==="
         )
         raaCfg = dict(cfg, threads=args.raaThreads)
-        raaRecords = benchmarkRAA(X, args, raaCfg, args.raaP2)
+        raaRecords = benchmarkRAA(
+            X,
+            args,
+            raaCfg,
+            args.raaP2,
+            existingRecords=raaRecords,
+            partialPath=partial,
+        )
 
     summary = writeOutputs(records, raaRecords, args, cfg)
 

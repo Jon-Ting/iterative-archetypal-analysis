@@ -27,9 +27,9 @@ PBS_SCRIPT="$SCRIPT_DIR/runBenchmarkTimingMNP.sh"
 QUEUE=normal
 PROJECT=p00
 NAME=iaaTimingMNP
-NCPUS=48
-WALLTIME=12:00:00
-MEM=32GB
+NCPUS=12
+WALLTIME=24:00:00
+MEM=16GB
 JOBFS=1GB
 EMAIL=jonathant@diversityarrays.com
 
@@ -41,14 +41,15 @@ REPEAT=3
 WORKERS=10
 THREADS=1
 RAA=1
-RAA_THREADS=1
-RAA_REPEATS=1
+RAA_THREADS=10
+RAA_REPEATS=3
 RAA_P2=""
 LABEL=MNP
 DATA=""
 PYTHON=""
 MODULE=""
 OUTDIR="$SCRIPT_DIR/timingBenchmarkMNP_results"
+RESUME=1
 DRYRUN=0
 
 usage() {
@@ -60,9 +61,9 @@ Options (defaults in brackets):
   -q, --queue QUEUE        PBS queue                        [normal]
   -P, --project PROJECT    PBS project                      [p00]
   -N, --name NAME          job name                         [iaaTimingMNP]
-  -c, --ncpus N            cores requested                  [48]
-  -w, --walltime HH:MM:SS  walltime                         [12:00:00]
-  -m, --mem SIZE           memory                           [32GB]
+  -c, --ncpus N            cores requested                  [12]
+  -w, --walltime HH:MM:SS  walltime                         [24:00:00]
+  -m, --mem SIZE           memory                           [16GB]
       --jobfs SIZE         job filesystem                   [1GB]
   -M, --email ADDRESS      notification address             [jonathant@diversityarrays.com]
       --no-email           suppress email notifications
@@ -73,10 +74,12 @@ Options (defaults in brackets):
   -r, --repeat N           IAA repeats                      [3]
   -W, --workers N          cores used in round 1            [10]
   -T, --threads N          spams threads per AA call        [1]
-      --raa-threads N      threads for the AA baseline      [1]
-      --raa-repeats N      AA baseline repeats              [1]
+      --raa-threads N      threads for the AA baseline      [10]
+      --raa-repeats N      AA baseline repeats              [3]
       --raa-p2 A:B         p2 values for the AA baseline    [same as --sweep]
       --no-raa             skip the AA baseline entirely
+      --resume             resume from partial checkpoint   [default]
+      --no-resume          ignore checkpoint, run fresh
   -l, --label NAME         output file prefix               [MNP]
   -d, --data PATH          feature pickle                   [repo copy]
   -o, --outdir DIR         output directory                 [<script dir>/timingBenchmarkMNP_results]
@@ -126,6 +129,8 @@ while (($#)); do
         --raa-repeats)     RAA_REPEATS=$2; shift ;;
         --raa-p2)          RAA_P2=$2; shift ;;
         --no-raa)          RAA=0 ;;
+        --resume)          RESUME=1 ;;
+        --no-resume)       RESUME=0 ;;
         -l|--label)        LABEL=$2; shift ;;
         -d|--data)         DATA=$2; shift ;;
         -o|--outdir)       OUTDIR=$2; shift ;;
@@ -200,6 +205,7 @@ fi
 VARS="K=$K,P1=$P1,P2=$P2,P2_SWEEP=$SWEEP"
 VARS+=",WORKERS=$WORKERS,THREADS=$THREADS,REPEAT=$REPEAT"
 VARS+=",RAA=$RAA,RAA_THREADS=$RAA_THREADS,RAA_REPEATS=$RAA_REPEATS"
+VARS+=",RESUME=$RESUME"
 VARS+=",LABEL=$LABEL,OUTDIR=$OUTDIR"
 [[ -n "$RAA_P2" ]] && VARS+=",RAA_P2=$RAA_P2"
 [[ -n "$PYTHON" ]] && VARS+=",PYTHON=$PYTHON"
@@ -212,6 +218,7 @@ echo "Resources : ${NCPUS} cores, ${MEM} mem, walltime ${WALLTIME}, queue ${QUEU
 echo "Output    : $OUTDIR"
 echo "Workers   : $WORKERS (round 1), threads per AA call: $THREADS"
 echo "AA baseline: enabled=$RAA, threads=$RAA_THREADS, repeats=$RAA_REPEATS"
+echo "Resume    : enabled=$RESUME"
 
 if (( DRYRUN )); then
     echo

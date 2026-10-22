@@ -136,16 +136,23 @@ cd /scratch/p00/<user>/iterative-archetypal-analysis/iaa-np-reduction/runIAA_MNP
 The dry run prints the exact `qsub` command and submits nothing. Check it, then drop
 `--dry-run` to submit for real.
 
-Recommended production command:
+Recommended production command (or resuming an interrupted run):
 
 ```bash
 ./submitBenchmarkTimingMNP.sh \
-    -c 12 -w 04:00:00 -m 16GB \
+    -c 12 -w 20:00:00 -m 16GB \
     --raa-threads 10 --raa-repeats 3 \
     --sweep 100:250:500:1000 \
+    --resume \
     -p /scratch/p00/<user>/iterative-archetypal-analysis/iteraa/.venv/bin/python \
     -M <your.email@anu.edu.au>
 ```
+
+> **Resume support**: The benchmark checkpoints to `timingBenchmark_MNP_partial.json`
+> after each completed IAA repeat and after **each individual RAA repeat**. When `--resume`
+> is passed (the default), any already completed IAA repeats or RAA points are skipped.
+> If a previous job timed out, re-running this command will pick up directly from where
+> it left off without re-executing finished stages.
 
 `-p` is **not optional in practice**: without it the job runs the cluster's default
 `python3`, which is older than 3.11 and has no `spams`, so the job dies in its
@@ -164,9 +171,9 @@ The driver refuses to submit a configuration that cannot work (non-numeric argum
 | `-q`, `--queue` | `normal` | PBS queue |
 | `-P`, `--project` | `p00` | PBS project |
 | `-N`, `--name` | `iaaTimingMNP` | job name |
-| `-c`, `--ncpus` | 48 | cores to request (10 are actually used; 12 is enough) |
-| `-w`, `--walltime` | `12:00:00` | walltime to request |
-| `-m`, `--mem` | `32GB` | memory to request (16GB is enough) |
+| `-c`, `--ncpus` | 12 | cores to request (10 are used by workers/threads; 12 is optimal) |
+| `-w`, `--walltime` | `24:00:00` | walltime to request |
+| `-m`, `--mem` | `16GB` | memory to request (actual footprint is < 1 GB) |
 | `--jobfs` | `1GB` | job filesystem |
 | `-M`, `--email` / `--no-email` | set | notification address |
 | `-k`, `--subsets` | 10 | number of subsets `k` |
@@ -176,10 +183,11 @@ The driver refuses to submit a configuration that cannot work (non-numeric argum
 | `-r`, `--repeat` | 3 | IAA repeats |
 | `-W`, `--workers` | 10 | cores used for round 1 |
 | `-T`, `--threads` | 1 | spams threads per IAA AA call |
-| `--raa-threads` | 1 | spams threads for the AA baseline |
-| `--raa-repeats` | 1 | AA baseline repeats |
+| `--raa-threads` | 10 | spams threads for the AA baseline |
+| `--raa-repeats` | 3 | AA baseline repeats |
 | `--raa-p2` | same as `--sweep` | `p2` values for the AA baseline |
 | `--no-raa` | off | skip the AA baseline entirely |
+| `--resume` / `--no-resume` | `--resume` | resume from existing partial checkpoint if available |
 | `-l`, `--label` | `MNP` | output file prefix |
 | `-d`, `--data` | repo copy | feature pickle |
 | `-o`, `--outdir` | `timingBenchmarkMNP_results/` | output directory |
@@ -238,30 +246,32 @@ percent, not to the digit.
 
 ## How long it takes
 
-Measured on a 14-core workstation (n = 9299, m = 134, k = 10, p1 = 300):
+Measured on NCI Gadi (`gadi-cpu-clx`, Intel Xeon Platinum 8268, n = 9299, m = 134, k = 10, p1 = 300):
 
-| Stage | Time |
-|---|---|
-| round 1, serial (the cost measurement) | 270 core-s (27 s per subset) |
-| round 1, 10 workers (the wall-clock pass) | 65 s |
-| final rounds at p2 = 100 / 250 / 500 / 1000 | 33 / 86 / 189 / 458 s |
-| AA baseline, one thread, same four `p2` | 132 / 316 / 737 / 1877 s (51 min in total) |
-| AA baseline, 10 threads, same four `p2` | ~20 min in total (2.4–2.6× faster) |
+| Stage | Per Repeat (Wall-Clock) | 3 Repeats |
+|---|---|---|
+| IAA round 1 (serial cost + parallel wall pass) | ~6 min (320–360 core-s, 34–40 s wall) | ~18 min |
+| IAA final rounds (p2 = 100, 250, 500, 1000) | ~16 min (43 s + 120 s + 250 s + 570 s) | ~48 min |
+| **Total IAA (all 4 points)** | **~22 min** | **~1.1 h** |
+| AA baseline p2 = 100 (10 threads) | ~15 min (915 s) | ~46 min |
+| AA baseline p2 = 250 (10 threads) | ~37 min (2240 s) | ~1.9 h |
+| AA baseline p2 = 500 (10 threads) | ~1.2–1.5 h (~4500–5500 s) | ~3.8–4.5 h |
+| AA baseline p2 = 1000 (10 threads) | ~2.5–3.5 h (~9000–12000 s) | ~7.5–10.5 h |
+| **Total AA baseline (all 4 points, 10 threads)** | **~5.5 h** | **~14–17.5 h** |
+| **Full benchmark (IAA + AA, 3 repeats)** | — | **~15–19 h** |
 
-So one IAA repeat is ~18 min, three repeats ~55 min, and the AA baseline adds ~20 min
-(threaded) to ~51 min (single-threaded). **Budget about 1.3 h with `--raa-threads 10`
-and about 2 h with `--raa-repeats 3`.** The `04:00:00` walltime above is comfortable.
+### Runtime budget & walltime allocation:
+- **Full run from scratch (3 repeats)**: Request `-w 24:00:00 -c 12 -m 16GB`.
+- **Resuming with IAA and p2=100, 250 finished**: Only p2 = 500 and 1000 remain (~11–15 h); request `-w 20:00:00 -c 12 -m 16GB`.
+- **Memory**: The job uses < 500 MB RAM, so `16GB` is plenty.
+- **CPUs**: Only 10 threads/workers are used at any time; `-c 12` is optimal and minimizes Service Unit (SU) consumption.
 
 **Do not reduce the dataset to save time.** Halving `n` cuts the AA baseline and round 1
 by ~0.38×, but the final round runs on `k * p1 = 3000` intermediate archetypes and does
-not shrink at all, so you would save only 20–40 minutes of a ~1.3–2 h run while losing
+not shrink at all, so you would save only 20–40 minutes of a long run while losing
 comparability with the published production timings (138.76 s at `p2 = 250` and 3023.5 s
 at `p2 = 5000`, both measured on the full n = 9299 dataset) and changing the `p2`/n
 regime that decides where IAA overtakes AA.
-
-**Request 12 cores, not 48.** Only 10 cores are ever used at once. Gadi bills service
-units as roughly `ncpus * wall-hours / 30`, so 48 cores for 1.8 h is ~2.9 SU while 12
-cores for the same work is ~0.7 SU.
 
 ## Troubleshooting
 
