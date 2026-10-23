@@ -23,7 +23,7 @@ venv/
 .qodo
 
 # Manuscripts
-iaa-manuscripts/
+iaa-manuscripts/MISC/
 
 # HPC Results
 iaa-np-reduction/runIAA_MNP/timingBenchmarkMNP_results/
