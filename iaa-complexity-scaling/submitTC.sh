@@ -15,8 +15,8 @@
 PROJECT="p00"
 QUEUE="normal"
 NCPUS=48
-WALLTIME_SHORT="01:00:00"    # for small n
-WALLTIME_LONG="05:00:00"     # for n >= 1600
+WALLTIME_SHORT="02:00:00"    # for small n
+WALLTIME_LONG="12:00:00"     # for n >= 1600
 MEM=120                       # GB
 EMAIL="jonathant@diversityarrays.com"
 
@@ -171,7 +171,7 @@ PBS
 }
 
 if [[ "$MODE" == "all" || "$MODE" == "ss" ]]; then
-    SS_OUTPUT_DIR="${SCRIPT_DIR}/runtimes/strongScaling"
+    SS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/strongScaling"
     mkdir -p "${SS_OUTPUT_DIR}"
     echo "=== Submitting Strong Scaling jobs ==="
     for n_nodes in 1 2 4 8 16 32; do
@@ -186,7 +186,7 @@ WS_NSAMPLES=(43 87 177 321 683 1055 1961 4189)
 WS_NNODES=(1 1 1 1 1 1 1 2)
 
 if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
-    WS_OUTPUT_DIR="${SCRIPT_DIR}/runtimes/weakScaling"
+    WS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/weakScaling"
     mkdir -p "${WS_OUTPUT_DIR}"
     echo "=== Submitting Weak Scaling jobs ==="
     for idx in "${!WS_NCPUS[@]}"; do
