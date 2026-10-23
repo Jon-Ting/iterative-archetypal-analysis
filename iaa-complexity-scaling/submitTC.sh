@@ -15,7 +15,7 @@
 PROJECT="p00"
 QUEUE="normal"
 NCPUS=48
-WALLTIME_SHORT="02:00:00"    # for small n
+WALLTIME_SHORT="04:00:00"    # for small n
 WALLTIME_LONG="12:00:00"     # for n >= 1600
 MEM=120                       # GB
 EMAIL="jonathant@diversityarrays.com"
