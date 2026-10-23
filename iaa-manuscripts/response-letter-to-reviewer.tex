@@ -1,0 +1,63 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[left=1.5cm,right=1.5cm,top=1.5cm,bottom=1.5cm]{geometry}
+\usepackage[parfill]{parskip}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Response Letter to Referee}
+\author{
+  Ting, Jonathant Y. C.\\
+  \and
+  Barnard, Amanda S.\\
+}
+\maketitle
+
+\def\correctionDone#1{{\color{blue}{#1}}}
+\def\correctionJon#1{{\color{orange}{#1}}}
+
+
+
+\section{Referee 1}
+
+1. The definition of “wall-clock time” in Eq. (3) is unclear. Since the first-stage AA calculations can run independently in parallel, their wall-clock contribution should be closer to the longest subset calculation rather than the sum of all subset times. Please distinguish wall-clock time from total computational cost. A timing benchmark using one of the actual MD datasets would also strengthen the scaling claim, as the current benchmarks use relatively small 5000-point 2D datasets.
+
+\correctionJon{Response: We appreciate the reviewer highlighting the need for clarity. .}
+
+2. The 5000-archetype monometallic example needs clarification. Table S2 uses k = 10, p1 = 300, and p2 = 5000, meaning that only 3000 intermediate samples enter the final AA stage while 5000 archetypes are requested. This appears overparameterized and may itself contribute to the observed redundant archetypes. Please explain how the implementation handles p2 > kp1 and whether this example remains meaningful.
+
+\correctionJon{Response:   We thank the reviewer for pointing this out. 
+}
+
+3. The ML validation procedure is not sufficiently clear. It is uncertain whether the 80:20 train/test split was performed before or after IAA.
+
+\correctionJon{Response: We thank the reviewer for this critical point. }
+
+
+4. Some statements about predictive performance appear too strong. For formation energy, IAA gives R² = 0.986, 0.866 +/-0.072, and 0.931 for training, cross-validation, and testing, compared with 0.993, 0.990 ± 0.001, and 0.991 using all training samples. Thus, saying that reduction “does not compromise predictive quality” should be moderated. Random sampling gives a higher formation-energy validation score (0.892 +/- 0.043) than IAA (0.866 ± 0.072), so the statement that IAA “consistently outperformed” random sampling should be corrected.
+
+\correctionJon{Response: We agree that .}
+
+5. The claimed ML speedups should be revisited. The domain-filtered bimetallic dataset contains 300,889 configurations, compared with 1800 after IAA, giving a reduction factor of about 167 rather than 500. The ~500 factor instead appears to compare the original 917,373 configurations with 1800. The reported 500× and 125,000,000× values should also be described as theoretical scaling estimates rather than measured training-time speedups.
+
+\correctionJon{Response: We thank the reviewer .}
+
+6. Please clarify the statement that, for Pearson correlation above 0.8, “the second of the pair was retained,” since presumably one correlated feature is removed. 
+
+\correctionJon{Response: We thank the reviewer for pointing this out. }
+
+7. Also state whether features were standardized/normalized before AA and Euclidean/GSx distance calculations. 
+
+\correctionJon{Response: We appreciate the reviewer’s feedback. }
+
+8. Finally, “entirely reproducible” seems too strong when the final archetype number still involves trial-and-error and user judgment.
+
+\correctionJon{Response: We agree with the reviewer that }
+
+
+We appreciate this critical observation. 
+Thank you for the suggestion. We have now included a comparative 
+We acknowledge the oversight. 
+
+
+\end{document}
