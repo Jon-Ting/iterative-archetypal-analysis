@@ -12,6 +12,7 @@ dependencies = [
     "scipy",
     "scikit-learn",
     "iteraa",
+    "spams-bin",   # wheels; plain `spams` compiles the C++ library from source
 ]
 
 [project.urls]

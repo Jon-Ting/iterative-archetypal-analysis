@@ -114,6 +114,26 @@ python plotSS_WS.py        # -> SS_VX_*.png, WS_VX_Efficiency.png
 
 ### On Gadi (HPC)
 
+One-time environment setup (the venv must be built with the same Python module
+the jobs load, here `python3/3.11.7`):
+
+```bash
+cd iaa-complexity-scaling
+module load python3/3.11.7
+python3 -m venv .venv
+.venv/bin/pip install -e ../iteraa      # local iteraa, not the PyPI copy
+.venv/bin/pip install -e .              # numpy / scipy / sklearn / spams
+```
+
+Do **not** rely on `source .venv/bin/activate` for batch work: PBS starts a
+clean non-interactive shell, so an activated venv does not carry over and
+`python3` in the job resolves to the bare module Python (which has no
+`iteraa`). `submitTC.sh` therefore calls `${SCRIPT_DIR}/.venv/bin/python`
+directly in every PBS script, and checks that this interpreter exists and can
+import `numpy, scipy, sklearn, iteraa` before queueing anything. Use
+`PYTHON=/path/to/python ./submitTC.sh` to point the jobs at a different
+interpreter.
+
 ```bash
 cd iaa-complexity-scaling
 
@@ -124,7 +144,8 @@ cd iaa-complexity-scaling
 ./submitTC.sh ss       # strong scaling only
 ./submitTC.sh ws       # weak scaling only
 
-# After all jobs finish:
+# After all jobs finish (activate the venv and run from this directory):
+source .venv/bin/activate
 python plotTC.py
 python plotSS_WS.py
 ```

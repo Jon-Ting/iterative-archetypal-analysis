@@ -24,7 +24,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/computationalComplexity"
 JOBSCRIPTS_DIR="${SCRIPT_DIR}/jobScripts"
 
+# Interpreter used inside the PBS jobs. The venv is NOT active in a batch job
+# (PBS starts a clean non-interactive shell), so point at the venv directly
+# instead of relying on `python3` from PATH, which is the bare module Python.
+# Override with e.g. PYTHON=../iteraa/.venv/bin/python ./submitTC.sh
+PYTHON="${PYTHON:-${SCRIPT_DIR}/.venv/bin/python}"
+
 mkdir -p "${OUTPUT_DIR}" "${JOBSCRIPTS_DIR}"
+
+# Fail at submit time rather than after every job has queued and died.
+if [[ ! -x "${PYTHON}" ]]; then
+    echo "ERROR: no executable interpreter at ${PYTHON}" >&2
+    echo "Create the venv first:" >&2
+    echo "  cd ${SCRIPT_DIR}" >&2
+    echo "  module load python3/3.11.7" >&2
+    echo "  python3 -m venv .venv" >&2
+    echo "  .venv/bin/pip install -e ../iteraa && .venv/bin/pip install -e ." >&2
+    exit 1
+fi
+if ! "${PYTHON}" -c 'import numpy, scipy, sklearn, iteraa' >/dev/null 2>&1; then
+    echo "ERROR: ${PYTHON} cannot import numpy/scipy/sklearn/iteraa." >&2
+    echo "Install them into that venv:" >&2
+    echo "  ${PYTHON} -m pip install -e ${SCRIPT_DIR}/../iteraa" >&2
+    echo "  ${PYTHON} -m pip install -e ${SCRIPT_DIR}" >&2
+    exit 1
+fi
+echo "Interpreter: ${PYTHON} ($("${PYTHON}" -c 'import sys; print(sys.version.split()[0])'))"
 
 TC_SAMPLES=(100 200 400 800 1600 3200)
 
@@ -64,15 +89,8 @@ submit_job() {
 
 module load python3/3.11.7
 
-# Activate virtual environment if available
-VENV="${SCRIPT_DIR}/.venv"
-if [ -f "${VENV}/bin/activate" ]; then
-    echo "Activating virtual environment"
-    source "${VENV}/bin/activate"
-fi
-
 cd ${SCRIPT_DIR}
-python3 ${script} ${n} ${out_file}
+"${PYTHON}" -u ${script} ${n} ${out_file}
 PBS
 
     qsub "${pbs_script}"
@@ -116,15 +134,8 @@ if [[ "$MODE" == "all" || "$MODE" == "2d" ]]; then
 
 module load python3/3.11.7
 
-# Activate virtual environment if available
-VENV="${SCRIPT_DIR}/.venv"
-if [ -f "${VENV}/bin/activate" ]; then
-    echo "Activating virtual environment"
-    source "${VENV}/bin/activate"
-fi
-
 cd ${SCRIPT_DIR}
-python3 runTC_2D.py
+"${PYTHON}" -u runTC_2D.py
 PBS
     qsub "${pbs_script}"
     echo "  Submitted 2D benchmark"
@@ -151,15 +162,8 @@ submit_ss_job() {
 
 module load python3/3.11.7
 
-# Activate virtual environment if available
-VENV="${SCRIPT_DIR}/.venv"
-if [ -f "${VENV}/bin/activate" ]; then
-    echo "Activating virtual environment"
-    source "${VENV}/bin/activate"
-fi
-
 cd ${SCRIPT_DIR}
-python3 runSS.py ${n_nodes} ${NCPUS} ${OUTPUT_DIR}/SS_VX_${total_cpus}.out
+"${PYTHON}" -u runSS.py ${n_nodes} ${NCPUS} ${OUTPUT_DIR}/SS_VX_${total_cpus}.out
 PBS
 
     qsub "${pbs_script}"
@@ -206,15 +210,8 @@ if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
 
 module load python3/3.11.7
 
-# Activate virtual environment if available
-VENV="${SCRIPT_DIR}/.venv"
-if [ -f "${VENV}/bin/activate" ]; then
-    echo "Activating virtual environment"
-    source "${VENV}/bin/activate"
-fi
-
 cd ${SCRIPT_DIR}
-python3 runWS.py ${ncpus} ${n_subsets} ${n_samples} ${num_threads} ${WS_OUTPUT_DIR}/WS_VX_${ncpus}.out
+"${PYTHON}" -u runWS.py ${ncpus} ${n_subsets} ${n_samples} ${num_threads} ${WS_OUTPUT_DIR}/WS_VX_${ncpus}.out
 PBS
         qsub "${pbs_script}"
         echo "  Submitted WS ncpus=${ncpus} n_subsets=${n_subsets} n_samples=${n_samples}"
