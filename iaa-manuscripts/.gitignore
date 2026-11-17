@@ -1,0 +1,14 @@
+# LaTeX build artifacts (regenerate with `make` or ./build_pdfs.sh)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.spl
+*.synctex.gz
+*.toc
+*.pdf
