@@ -18,7 +18,7 @@ SS_Nnodes = ( 1,  2,   4,   8,  16,   32)   # PBS nodes; nSubsets = nNodes
 
 Output files
 ------------
-``runtimes/strongScaling/SS_VX_{ncpus}.out``
+``data/runTimes/strongScaling/SS_IAA_{ncpus}.out``
 
 Each file contains NUM_ITERATION lines::
 
@@ -35,7 +35,7 @@ Usage
 Local (simulates the timing, sequential):
     python runSS.py
 
-PBS (called from submitSS.sh for a specific node count):
+PBS (called from submitTC.sh for a specific node count):
     python runSS.py <nNodes> <ncpus_per_node> <outputFile>
 
     nNodes          : number of parallel nodes (= number of subsets)
@@ -73,7 +73,7 @@ SS_NCPUS_PER_NODE: int = 48
 SS_NNODES: tuple = (1, 2, 4, 8, 16, 32)
 # Derived: SS_Ncpus = tuple(n * SS_NCPUS_PER_NODE for n in SS_NNODES)
 
-OUTPUT_DIR: str = "runtimes/strongScaling"
+OUTPUT_DIR: str = "data/runTimes/strongScaling"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -201,7 +201,7 @@ def main() -> None:
         # Local sweep over all node counts
         for n_nodes in SS_NNODES:
             total_cpus = n_nodes * SS_NCPUS_PER_NODE
-            output_file = f"{OUTPUT_DIR}/SS_VX_{total_cpus}.out"
+            output_file = f"{OUTPUT_DIR}/SS_IAA_{total_cpus}.out"
             print(f"\n=== Strong Scaling  nodes={n_nodes}  cpus={total_cpus} ===")
             benchmark_one(n_nodes, SS_NCPUS_PER_NODE, output_file)
 

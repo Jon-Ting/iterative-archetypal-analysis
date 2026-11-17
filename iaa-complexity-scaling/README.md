@@ -1,7 +1,11 @@
 # IAA Complexity Scaling
 
-Benchmarking scripts that produce the complexity scaling results reported in
-`iaa-manuscripts/IAA_manuscript.tex`.
+Benchmarking scripts that produce the computational-complexity and parallel
+scaling results reported in `iaa-manuscripts/IAA_manuscript.tex`.
+
+The benchmarks cover the parallel Iterative Archetypal Analysis (IAA)
+algorithm only, in three experiments: time complexity, strong scaling, and
+weak scaling.
 
 ---
 
@@ -9,13 +13,11 @@ Benchmarking scripts that produce the complexity scaling results reported in
 
 | File | Purpose |
 |---|---|
-| `runTC_RAA.py` | Time-complexity benchmark for **Reference AA** (non-iterative) |
 | `runTC_IAA.py` | Time-complexity benchmark for **Iterative AA** |
-| `runTC_2D.py` | 2D synthetic dataset benchmark — **Table 1** in the manuscript |
 | `runSS.py` | **Strong-scaling** benchmark (fixed problem, vary CPUs/nodes) |
 | `runWS.py` | **Weak-scaling** benchmark (scale both problem and CPUs) |
-| `plotTC.py` | Reads TC output files and generates all TC figures |
-| `plotSS_WS.py` | Reads SS/WS output files and generates all scaling figures |
+| `plotTC.py` | Reads TC output files and generates the TC figures |
+| `plotSS_WS.py` | Reads SS/WS output files and generates the scaling figures |
 | `submitTC.sh` | Submits **all** PBS jobs to Gadi (TC + SS + WS) |
 | `complexityScaling.ipynb` | Full interactive notebook (reads same output files) |
 
@@ -59,8 +61,9 @@ Benchmarking scripts that produce the complexity scaling results reported in
 | 48 | 1 | 2 | 1961 |
 | 96 | 2 | 4 | 4189 |
 
-Sample counts mirror the original Gadi MD nanoparticle runs (atom counts
-for the voxelised-surface descriptor, hence the `VX` label in filenames).
+Sample counts are sized so that samples per core stays roughly constant
+(≈ 43) at every configuration, which is what keeps the per-core workload
+fixed for a weak-scaling experiment.
 
 ---
 
@@ -82,14 +85,11 @@ duration as the third whitespace-delimited token.
 ```
 iaa-complexity-scaling/
 ├── data/runTimes/computationalComplexity/
-│   ├── TC_RAA_{100,200,400,800,1600,3200}.out
-│   ├── TC_PIAA_{100,200,400,800,1600,3200}.out
-│   ├── TC_2D_RAA_{square,circular}.out
-│   └── TC_2D_IAA_{square,circular}_k{2,4,8}.out
-├── runtimes/strongScaling/
-│   └── SS_VX_{48,96,192,384,768,1536}.out
-└── runtimes/weakScaling/
-    └── WS_VX_{1,2,4,8,16,24,48,96}.out
+│   └── TC_PIAA_{100,200,400,800,1600,3200}.out
+├── data/runTimes/strongScaling/
+│   └── SS_IAA_{48,96,192,384,768,1536}.out
+└── data/runTimes/weakScaling/
+    └── WS_IAA_{1,2,4,8,16,24,48,96}.out
 ```
 
 ---
@@ -102,14 +102,12 @@ iaa-complexity-scaling/
 cd iaa-complexity-scaling
 source .venv/bin/activate
 
-python runTC_RAA.py        # TC for RAA
 python runTC_IAA.py        # TC for IAA
-python runTC_2D.py         # 2D benchmark (Table 1)
 python runSS.py            # Strong scaling (simulates parallel wall-clock locally)
 python runWS.py            # Weak scaling
 
-python plotTC.py           # -> TC_RAA.png, TC_PIAA.png, TC_RAAPIAA*.png
-python plotSS_WS.py        # -> SS_VX_*.png, WS_VX_Efficiency.png
+python plotTC.py           # -> TC_PIAA.png, TC_PIAA_loglog.png, TC_PIAA_BoxPlots.png
+python plotSS_WS.py        # -> SS_IAA_*.png, WS_IAA_Efficiency.png
 ```
 
 ### On Gadi (HPC)
@@ -138,9 +136,7 @@ interpreter.
 cd iaa-complexity-scaling
 
 ./submitTC.sh          # submit all jobs (TC + SS + WS)
-./submitTC.sh raa      # RAA time-complexity only
 ./submitTC.sh iaa      # IAA time-complexity only
-./submitTC.sh 2d       # 2D benchmark (Table 1) only
 ./submitTC.sh ss       # strong scaling only
 ./submitTC.sh ws       # weak scaling only
 
@@ -158,7 +154,6 @@ Or open `complexityScaling.ipynb` for the full interactive analysis.
 
 | Script / Output | Manuscript Location |
 |---|---|
-| `runTC_2D.py` -> `TC_2D_*.out` | **Table 1** (`tab:redRed2DdataEval`) — execution times averaged over 30 runs |
-| `plotTC.py` -> `TC_RAAPIAA_loglog.png` | Supporting evidence for section "Computational scaling" |
-| `runSS.py` + `plotSS_WS.py` -> `SS_VX_*.png` | Strong-scaling speedup and efficiency figures |
-| `runWS.py` + `plotSS_WS.py` -> `WS_VX_Efficiency.png` | Weak-scaling efficiency figure |
+| `plotTC.py` -> `TC_PIAA.png`, `TC_PIAA_loglog.png` | Supporting evidence for section "Computational scaling" |
+| `runSS.py` + `plotSS_WS.py` -> `SS_IAA_*.png` | Strong-scaling speedup and efficiency figures |
+| `runWS.py` + `plotSS_WS.py` -> `WS_IAA_Efficiency.png` | Weak-scaling efficiency figure |

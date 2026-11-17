@@ -1,14 +1,9 @@
-"""Plot time-complexity results for the manuscript figures.
+"""Plot time-complexity results for the IAA manuscript figures.
 
-Reads runtime files produced by ``runTC_RAA.py`` and ``runTC_IAA.py`` and
-generates four figures:
+Reads runtime files produced by ``runTC_IAA.py`` and generates two figures:
 
-1. ``TC_RAA.png``         — RAA duration vs number of samples (linear scale).
-2. ``TC_RAA_loglog.png``  — Same, with O(n) reference line, log-log scale.
-3. ``TC_PIAA.png``        — IAA duration vs number of samples.
-4. ``TC_PIAA_loglog.png`` — Same, with O(n) reference line, log-log scale.
-5. ``TC_RAAPIAA.png``     — RAA vs IAA comparison (linear scale).
-6. ``TC_RAAPIAA_loglog.png`` — RAA vs IAA comparison with O(n) references.
+1. ``TC_PIAA.png``        — IAA duration vs number of samples (linear scale).
+2. ``TC_PIAA_loglog.png`` — Same, with O(n) reference line, log-log scale.
 
 Input directory: ``data/runTimes/computationalComplexity/``
 Output directory: (same as script location, i.e. ``iaa-complexity-scaling/``)
@@ -69,8 +64,7 @@ def load_durations(keyword: str) -> list[list[float]]:
         with open(f"{INPUT_DIR}/{fname}") as fh:
             for line in fh:
                 if "Run " in line:
-                    # "Run {i}: {duration:.3f} s" or
-                    # "Run {i}: {duration:.3f} s  EV: ..."
+                    # "Run {i}: {duration:.3f} s"
                     parts = line.strip().split()
                     durations.append(float(parts[2]))
         all_durations.append(durations)
@@ -131,64 +125,16 @@ def box_plots(df: pd.DataFrame, x_label: str, method: str,
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    print("\n=== Loading RAA runtimes ===")
-    raa_raw = load_durations("TC_RAA_")
-    raa_df = pd.DataFrame(np.array(raa_raw).T, columns=TC_NUM_SAMPLES)
-    box_plots(raa_df, "Number of samples", "RAA", "TC")
-    raa_durations = remove_outliers_iqr(raa_df)
-    raa_df_clean = pd.DataFrame({"numSample": TC_NUM_SAMPLES,
-                                  "duration": raa_durations})
-
     print("\n=== Loading IAA runtimes ===")
     piaa_raw = load_durations("TC_PIAA_")
     piaa_df = pd.DataFrame(np.array(piaa_raw).T, columns=TC_NUM_SAMPLES)
     box_plots(piaa_df, "Number of samples", "PIAA", "TC")
     piaa_durations = remove_outliers_iqr(piaa_df)
     piaa_df_clean = pd.DataFrame({"numSample": TC_NUM_SAMPLES,
-                                   "duration": piaa_durations})
+                                  "duration": piaa_durations})
 
     # ------------------------------------------------------------------
-    # 1. TC_RAA.png — linear scale
-    # ------------------------------------------------------------------
-    fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
-    plt.plot(raa_df_clean["numSample"], raa_df_clean["duration"],
-             linewidth=LINE_WIDTH, linestyle="--", marker="s",
-             markersize=MARKER_SIZE, color=HEX_CODES[1], zorder=3)
-    plt.xlabel("Number of samples", fontsize="medium")
-    plt.ylabel("Duration (s)", fontsize="medium")
-    plt.tick_params(axis="both", labelsize="small")
-    plt.grid(linestyle="dotted")
-    plt.tight_layout()
-    plt.savefig("TC_RAA.png")
-    plt.close()
-    print("Saved TC_RAA.png")
-
-    # ------------------------------------------------------------------
-    # 2. TC_RAA_loglog.png — log-log with O(n) reference
-    # ------------------------------------------------------------------
-    fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
-    n0 = raa_df_clean["numSample"].iloc[0]
-    t0 = raa_df_clean["duration"].iloc[0]
-    plt.plot(raa_df_clean["numSample"], raa_df_clean["duration"],
-             linewidth=LINE_WIDTH, linestyle="--", marker="s",
-             markersize=MARKER_SIZE, color=HEX_CODES[1], zorder=3)
-    plt.plot(raa_df_clean["numSample"],
-             t0 * (raa_df_clean["numSample"] / n0),
-             linewidth=LINE_WIDTH, linestyle="-", marker=None,
-             markersize=MARKER_SIZE, color=HEX_CODES[0], zorder=2)
-    plt.loglog()
-    plt.xlabel("Number of samples", fontsize="medium")
-    plt.ylabel("Duration (s)", fontsize="medium")
-    plt.tick_params(axis="both", labelsize="small")
-    plt.grid(linestyle="dotted")
-    plt.legend(labels=("Actual", r"$O(n)$ Ideal"), fontsize="small")
-    plt.tight_layout()
-    plt.savefig("TC_RAA_loglog.png")
-    plt.close()
-    print("Saved TC_RAA_loglog.png")
-
-    # ------------------------------------------------------------------
-    # 3. TC_PIAA.png — linear scale
+    # 1. TC_PIAA.png — linear scale
     # ------------------------------------------------------------------
     fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
     plt.plot(piaa_df_clean["numSample"], piaa_df_clean["duration"],
@@ -204,7 +150,7 @@ def main() -> None:
     print("Saved TC_PIAA.png")
 
     # ------------------------------------------------------------------
-    # 4. TC_PIAA_loglog.png — log-log with O(n) reference
+    # 2. TC_PIAA_loglog.png — log-log with O(n) reference
     # ------------------------------------------------------------------
     fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
     n0 = piaa_df_clean["numSample"].iloc[0]
@@ -226,63 +172,6 @@ def main() -> None:
     plt.savefig("TC_PIAA_loglog.png")
     plt.close()
     print("Saved TC_PIAA_loglog.png")
-
-    # ------------------------------------------------------------------
-    # 5. TC_RAAPIAA.png — comparison, linear scale
-    # ------------------------------------------------------------------
-    fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(raa_df_clean["numSample"], raa_df_clean["duration"],
-            linewidth=LINE_WIDTH, linestyle="--", marker="s",
-            markersize=MARKER_SIZE, color=HEX_CODES[1], zorder=3)
-    ax.plot(piaa_df_clean["numSample"], piaa_df_clean["duration"],
-            linewidth=LINE_WIDTH, linestyle="--", marker="x",
-            markersize=MARKER_SIZE, color=HEX_CODES[2], zorder=3)
-    ax.set_xlabel("Number of samples", fontsize="medium")
-    ax.set_ylabel("Duration (s)", fontsize="medium")
-    ax.tick_params(axis="both", labelsize="small")
-    ax.grid(linestyle="dotted")
-    ax.legend(labels=("RAA", "IAA"), fontsize="small")
-    plt.tight_layout()
-    plt.savefig("TC_RAAPIAA.png")
-    plt.close()
-    print("Saved TC_RAAPIAA.png")
-
-    # ------------------------------------------------------------------
-    # 6. TC_RAAPIAA_loglog.png — comparison with O(n) references
-    # ------------------------------------------------------------------
-    fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
-    ax = fig.add_subplot(1, 1, 1)
-    raa_n0 = raa_df_clean["numSample"].iloc[0]
-    raa_t0 = raa_df_clean["duration"].iloc[0]
-    piaa_n0 = piaa_df_clean["numSample"].iloc[0]
-    piaa_t0 = piaa_df_clean["duration"].iloc[0]
-
-    ax.plot(raa_df_clean["numSample"], raa_df_clean["duration"],
-            linewidth=LINE_WIDTH, linestyle="--", marker="s",
-            markersize=MARKER_SIZE, color=HEX_CODES[1], zorder=3)
-    ax.plot(piaa_df_clean["numSample"], piaa_df_clean["duration"],
-            linewidth=LINE_WIDTH, linestyle="--", marker="x",
-            markersize=MARKER_SIZE, color=HEX_CODES[2], zorder=3)
-    ax.plot(raa_df_clean["numSample"],
-            raa_t0 * (raa_df_clean["numSample"] / raa_n0),
-            linewidth=LINE_WIDTH, linestyle="-", marker=None,
-            markersize=MARKER_SIZE, color=HEX_CODES[0], zorder=2)
-    ax.plot(piaa_df_clean["numSample"],
-            piaa_t0 * (piaa_df_clean["numSample"] / piaa_n0),
-            linewidth=LINE_WIDTH, linestyle="-", marker=None,
-            markersize=MARKER_SIZE, color=HEX_CODES[3], zorder=2)
-    ax.loglog()
-    ax.set_xlabel("Number of samples", fontsize="medium")
-    ax.set_ylabel("Duration (s)", fontsize="medium")
-    ax.tick_params(axis="both", labelsize="small")
-    ax.grid(linestyle="dotted")
-    ax.legend(labels=("RAA", "IAA", r"$O(n)$ RAA", r"$O(n)$ IAA"),
-              fontsize="small")
-    plt.tight_layout()
-    plt.savefig("TC_RAAPIAA_loglog.png")
-    plt.close()
-    print("Saved TC_RAAPIAA_loglog.png")
 
     print("\nAll figures saved.")
 

@@ -5,18 +5,15 @@ size proportionally, keeping the workload per processor constant.  Ideal
 weak-scaling efficiency is 1.0 (constant duration regardless of scale).
 
 The test case matches the notebook (Gadi, ``complexityScaling.ipynb``, §Weak
-Scaling).  In the original run, the data came from molecular-dynamics
-nanoparticle simulations (voxelised-surface descriptor, hence the "VX" label),
-where atom counts were used to set problem sizes.  These scripts reproduce the
-same experiment with synthetic data using the same atom-count values as sample
-counts, so the relative scaling behaviour is preserved.
+Scaling).  Sample counts are chosen so that samples per core stays roughly
+constant (≈ 43) at every configuration, which is what makes the experiment a
+weak-scaling one.
 
 Configuration
 -------------
 WS_Ncpus    = (1, 2, 4, 8, 16, 24, 48, 96)
 WS_Nnodes   = (1, 1, 1, 1,  1,  1,  1,  2)
-WS_NumAtoms = (43, 87, 177, 321, 683, 1055, 1961, 4189)  # actual atom counts
-               → used directly as n_samples for each configuration
+WS_NumSamples = (43, 87, 177, 321, 683, 1055, 1961, 4189)
 
 Each entry in WS_Ncpus is the total number of CPUs; the number of subsets
 equals the number of CPU sockets used per node (inferred from the Gadi spec:
@@ -24,7 +21,7 @@ equals the number of CPU sockets used per node (inferred from the Gadi spec:
 
 Output files
 ------------
-``runtimes/weakScaling/WS_VX_{ncpus}.out``
+``data/runTimes/weakScaling/WS_IAA_{ncpus}.out``
 
 Each file contains NUM_ITERATION lines::
 
@@ -38,7 +35,7 @@ Usage
 Local (sequential simulation):
     python runWS.py
 
-PBS (called from submitWS.sh for one CPU-count step):
+PBS (called from submitTC.sh for one CPU-count step):
     python runWS.py <ncpus> <nSubsets> <nSamples> <numThreads> <outputFile>
 """
 
@@ -71,11 +68,11 @@ SHUFFLE: bool = True
 WS_NCPUS: tuple = (1,  2,   4,   8,   16,   24,   48,   96)
 WS_NNODES: tuple = (1,  1,   1,   1,    1,    1,    1,    2)
 WS_NSUBSETS: tuple = (1, 1,   1,   1,    1,    1,    2,    4)  # subsets per run
-WS_NUM_ATOMS: tuple = (43, 87, 177, 321, 683, 1055, 1961, 4189)
+WS_NUM_SAMPLES: tuple = (43, 87, 177, 321, 683, 1055, 1961, 4189)
 # Threads per subset = ncpus / nSubsets
 # e.g. 48 cpus, 2 subsets → 24 threads each
 
-OUTPUT_DIR: str = "runtimes/weakScaling"
+OUTPUT_DIR: str = "data/runTimes/weakScaling"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -189,10 +186,10 @@ def main() -> None:
     else:
         # Local sweep over all configurations
         for ncpus, n_subsets, n_samples in zip(
-            WS_NCPUS, WS_NSUBSETS, WS_NUM_ATOMS
+            WS_NCPUS, WS_NSUBSETS, WS_NUM_SAMPLES
         ):
             num_threads = ncpus // max(n_subsets, 1)
-            output_file = f"{OUTPUT_DIR}/WS_VX_{ncpus}.out"
+            output_file = f"{OUTPUT_DIR}/WS_IAA_{ncpus}.out"
             print(f"\n=== Weak Scaling  ncpus={ncpus}  "
                   f"n_subsets={n_subsets}  n_samples={n_samples} ===")
             benchmark_one(ncpus, n_subsets, n_samples, num_threads,

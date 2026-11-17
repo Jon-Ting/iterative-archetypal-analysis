@@ -1,14 +1,14 @@
 #!/bin/bash
-# submitTC.sh — Submit time-complexity benchmark jobs to Gadi (PBS).
+# submitTC.sh — Submit IAA benchmark jobs to Gadi (PBS).
 #
 # Usage:
-#   ./submitTC.sh          # submits all RAA and IAA jobs
-#   ./submitTC.sh raa      # submits only RAA jobs
-#   ./submitTC.sh iaa      # submits only IAA jobs
-#   ./submitTC.sh 2d       # submits the 2D dataset benchmark (Table 1)
+#   ./submitTC.sh          # submits all IAA jobs (TC + SS + WS)
+#   ./submitTC.sh iaa      # submits only IAA time-complexity jobs
+#   ./submitTC.sh ss       # submits only strong-scaling jobs
+#   ./submitTC.sh ws       # submits only weak-scaling jobs
 #
-# Each job runs one (script, numSamples) pair and writes results to
-#   data/runTimes/computationalComplexity/TC_{RAA|PIAA}_{numSamples}.out
+# Each TC job runs one numSamples value and writes results to
+#   data/runTimes/computationalComplexity/TC_PIAA_{numSamples}.out
 #
 # Adjust PROJECT, WALLTIME, NCPUS, and MEM as appropriate for your allocation.
 
@@ -99,59 +99,26 @@ PBS
 
 MODE="${1:-all}"
 
-# Submit RAA jobs
-if [[ "$MODE" == "all" || "$MODE" == "raa" ]]; then
-    echo "=== Submitting RAA jobs ==="
-    for n in "${TC_SAMPLES[@]}"; do
-        submit_job "TC_RAA" "runTC_RAA.py" "$n" \
-            "${OUTPUT_DIR}/TC_RAA_${n}.out"
-    done
-fi
-
-# Submit IAA (PIAA) jobs
+# Submit IAA (PIAA) time-complexity jobs
 if [[ "$MODE" == "all" || "$MODE" == "iaa" ]]; then
-    echo "=== Submitting IAA jobs ==="
+    echo "=== Submitting IAA time-complexity jobs ==="
     for n in "${TC_SAMPLES[@]}"; do
         submit_job "TC_PIAA" "runTC_IAA.py" "$n" \
             "${OUTPUT_DIR}/TC_PIAA_${n}.out"
     done
 fi
 
-# Submit the 2D benchmark (Table 1)
-if [[ "$MODE" == "all" || "$MODE" == "2d" ]]; then
-    echo "=== Submitting 2D benchmark ==="
-    pbs_script="${JOBSCRIPTS_DIR}/TC_2D.pbs"
-    cat > "${pbs_script}" << PBS
-#!/bin/bash
-#PBS -N TC_2D
-#PBS -P ${PROJECT}
-#PBS -q ${QUEUE}
-#PBS -l ncpus=${NCPUS},walltime=${WALLTIME_SHORT},mem=${MEM}GB,jobfs=1GB
-#PBS -l storage=scratch/${PROJECT}
-#PBS -l wd
-#PBS -M ${EMAIL}
-#PBS -m abe
-
-module load python3/3.11.7
-
-cd ${SCRIPT_DIR}
-"${PYTHON}" -u runTC_2D.py
-PBS
-    qsub "${pbs_script}"
-    echo "  Submitted 2D benchmark"
-fi
-
-echo "Done."
-
 # ── Strong Scaling submission ──────────────────────────────────────────────
+SS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/strongScaling"
+
 submit_ss_job() {
     local n_nodes=$1
     local total_cpus=$(( n_nodes * NCPUS ))
 
-    local pbs_script="${JOBSCRIPTS_DIR}/SS_VX_${total_cpus}.pbs"
+    local pbs_script="${JOBSCRIPTS_DIR}/SS_IAA_${total_cpus}.pbs"
     cat > "${pbs_script}" << PBS
 #!/bin/bash
-#PBS -N SS_VX_${total_cpus}
+#PBS -N SS_IAA_${total_cpus}
 #PBS -P ${PROJECT}
 #PBS -q ${QUEUE}
 #PBS -l ncpus=${total_cpus},walltime=${WALLTIME_SHORT},mem=$(( n_nodes * MEM ))GB,jobfs=1GB
@@ -163,7 +130,7 @@ submit_ss_job() {
 module load python3/3.11.7
 
 cd ${SCRIPT_DIR}
-"${PYTHON}" -u runSS.py ${n_nodes} ${NCPUS} ${OUTPUT_DIR}/SS_VX_${total_cpus}.out
+"${PYTHON}" -u runSS.py ${n_nodes} ${NCPUS} ${SS_OUTPUT_DIR}/SS_IAA_${total_cpus}.out
 PBS
 
     qsub "${pbs_script}"
@@ -171,7 +138,6 @@ PBS
 }
 
 if [[ "$MODE" == "all" || "$MODE" == "ss" ]]; then
-    SS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/strongScaling"
     mkdir -p "${SS_OUTPUT_DIR}"
     echo "=== Submitting Strong Scaling jobs ==="
     for n_nodes in 1 2 4 8 16 32; do
@@ -184,9 +150,9 @@ WS_NCPUS=(1 2 4 8 16 24 48 96)
 WS_NSUBSETS=(1 1 1 1 1 1 2 4)
 WS_NSAMPLES=(43 87 177 321 683 1055 1961 4189)
 WS_NNODES=(1 1 1 1 1 1 1 2)
+WS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/weakScaling"
 
 if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
-    WS_OUTPUT_DIR="${SCRIPT_DIR}/data/runTimes/weakScaling"
     mkdir -p "${WS_OUTPUT_DIR}"
     echo "=== Submitting Weak Scaling jobs ==="
     for idx in "${!WS_NCPUS[@]}"; do
@@ -196,10 +162,10 @@ if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
         n_nodes=${WS_NNODES[$idx]}
         num_threads=$(( ncpus / n_subsets ))
 
-        pbs_script="${JOBSCRIPTS_DIR}/WS_VX_${ncpus}.pbs"
+        pbs_script="${JOBSCRIPTS_DIR}/WS_IAA_${ncpus}.pbs"
         cat > "${pbs_script}" << PBS
 #!/bin/bash
-#PBS -N WS_VX_${ncpus}
+#PBS -N WS_IAA_${ncpus}
 #PBS -P ${PROJECT}
 #PBS -q ${QUEUE}
 #PBS -l ncpus=${ncpus},walltime=${WALLTIME_SHORT},mem=$(( n_nodes * MEM ))GB,jobfs=1GB
@@ -211,9 +177,11 @@ if [[ "$MODE" == "all" || "$MODE" == "ws" ]]; then
 module load python3/3.11.7
 
 cd ${SCRIPT_DIR}
-"${PYTHON}" -u runWS.py ${ncpus} ${n_subsets} ${n_samples} ${num_threads} ${WS_OUTPUT_DIR}/WS_VX_${ncpus}.out
+"${PYTHON}" -u runWS.py ${ncpus} ${n_subsets} ${n_samples} ${num_threads} ${WS_OUTPUT_DIR}/WS_IAA_${ncpus}.out
 PBS
         qsub "${pbs_script}"
         echo "  Submitted WS ncpus=${ncpus} n_subsets=${n_subsets} n_samples=${n_samples}"
     done
 fi
+
+echo "Done."

@@ -3,16 +3,16 @@
 Reads runtime files produced by ``runSS.py`` and ``runWS.py`` and generates:
 
 Strong scaling (3 figures):
-  ``SS_VX_Speedups.png``   — actual speedup vs ideal (log-log)
-  ``SS_VX_Speedup.png``    — actual speedup vs Amdahl's law (log-log)
-  ``SS_VX_Efficiency.png`` — parallelisation efficiency (log x-axis)
+  ``SS_IAA_Speedups.png``   — actual speedup vs ideal (log-log)
+  ``SS_IAA_Speedup.png``    — actual speedup vs Amdahl's law (log-log)
+  ``SS_IAA_Efficiency.png`` — parallelisation efficiency (log x-axis)
 
 Weak scaling (1 figure):
-  ``WS_VX_Efficiency.png`` — parallelisation efficiency (log x-axis)
+  ``WS_IAA_Efficiency.png`` — parallelisation efficiency (log x-axis)
 
 Input directories:
-  ``runtimes/strongScaling/SS_VX_{ncpus}.out``
-  ``runtimes/weakScaling/WS_VX_{ncpus}.out``
+  ``data/runTimes/strongScaling/SS_IAA_{ncpus}.out``
+  ``data/runTimes/weakScaling/WS_IAA_{ncpus}.out``
 
 Usage
 -----
@@ -141,9 +141,10 @@ def box_plots(df: pd.DataFrame, x_label: str, method: str,
 
 def plot_strong_scaling() -> None:
     print("\n=== Strong Scaling ===")
-    raw = load_durations_ordered("runtimes/strongScaling", "SS_VX_", SS_NCPUS)
+    raw = load_durations_ordered("data/runTimes/strongScaling", "SS_IAA_",
+                                 SS_NCPUS)
     df = pd.DataFrame(np.array(raw).T, columns=SS_NCPUS)
-    box_plots(df, "Number of cores", "VX", "SS")
+    box_plots(df, "Number of cores", "IAA", "SS")
 
     durations = remove_outliers_iqr(df)
     ss_df = pd.DataFrame({
@@ -175,9 +176,9 @@ def plot_strong_scaling() -> None:
     ax.grid(linestyle="dotted")
     ax.legend(labels=("Actual", "Ideal"), fontsize="small")
     plt.tight_layout()
-    plt.savefig("SS_VX_Speedups.png")
+    plt.savefig("SS_IAA_Speedups.png")
     plt.close()
-    print("  Saved SS_VX_Speedups.png")
+    print("  Saved SS_IAA_Speedups.png")
 
     # 2. Speedup vs Amdahl's law (log-log)
     fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
@@ -198,9 +199,9 @@ def plot_strong_scaling() -> None:
     ax.grid(linestyle="dotted")
     ax.legend(labels=("Amdahl's law", "Actual"), fontsize="small")
     plt.tight_layout()
-    plt.savefig("SS_VX_Speedup.png")
+    plt.savefig("SS_IAA_Speedup.png")
     plt.close()
-    print("  Saved SS_VX_Speedup.png")
+    print("  Saved SS_IAA_Speedup.png")
 
     # 3. Efficiency (log x-axis)
     fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
@@ -218,9 +219,9 @@ def plot_strong_scaling() -> None:
     ax.grid(linestyle="dotted")
     ax.legend(labels=("Actual", "Ideal"), fontsize="small")
     plt.tight_layout()
-    plt.savefig("SS_VX_Efficiency.png")
+    plt.savefig("SS_IAA_Efficiency.png")
     plt.close()
-    print("  Saved SS_VX_Efficiency.png")
+    print("  Saved SS_IAA_Efficiency.png")
 
 
 # ---------------------------------------------------------------------------
@@ -229,9 +230,10 @@ def plot_strong_scaling() -> None:
 
 def plot_weak_scaling() -> None:
     print("\n=== Weak Scaling ===")
-    raw = load_durations_ordered("runtimes/weakScaling", "WS_VX_", WS_NCPUS)
+    raw = load_durations_ordered("data/runTimes/weakScaling", "WS_IAA_",
+                                 WS_NCPUS)
     df = pd.DataFrame(np.array(raw).T, columns=WS_NCPUS)
-    box_plots(df, "Number of cores", "VX", "WS")
+    box_plots(df, "Number of cores", "IAA", "WS")
 
     durations = remove_outliers_iqr(df)
     ws_df = pd.DataFrame({
@@ -260,9 +262,9 @@ def plot_weak_scaling() -> None:
     ax.grid(linestyle="dotted")
     ax.legend(labels=("Actual", "Ideal"), fontsize="small")
     plt.tight_layout()
-    plt.savefig("WS_VX_Efficiency.png")
+    plt.savefig("WS_IAA_Efficiency.png")
     plt.close()
-    print("  Saved WS_VX_Efficiency.png")
+    print("  Saved WS_IAA_Efficiency.png")
 
 
 # ---------------------------------------------------------------------------
