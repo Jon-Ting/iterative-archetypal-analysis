@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -P q27
+#PBS -q normal
+#PBS -l ncpus=48
+#PBS -l mem=64GB
+#PBS -l walltime=01:00:00
+#PBS -l storage=scratch/q27+scratch/p00
+#PBS -N GSx_diversity
+#PBS -o GSx_diversity.out
+#PBS -e GSx_diversity.err
+
+module load python3/3.11.0
+
+cd $PBS_O_WORKDIR
+
+# Path to python environment with scikit-learn
+# Adjust DATA_DIR to where BNPFeatsDF.pkl is located on Gadi scratch
+DATA_DIR="/scratch/q27/jt5911/iterative-archetypal-analysis/iaa/docs/data"
+IAA_PKL="iteraa/docs/reducedNPdata/reducedBNP_nanoparticle_data.pkl"
+DOM_PKL="${DATA_DIR}/BNPFeatsDF.pkl"
+
+echo "=== Running GSx Diversity Metric Calculation ==="
+python3 calculate_gsx_diversity.py \
+    --iaa_path "${IAA_PKL}" \
+    --domain_path "${DOM_PKL}" \
+    --batch_size 10000 \
+    --n_jobs 48
+
+echo "=== Finished ==="
