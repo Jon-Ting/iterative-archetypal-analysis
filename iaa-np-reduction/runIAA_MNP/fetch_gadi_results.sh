@@ -5,9 +5,12 @@ set -euo pipefail
 GADI_HOST="${1:-gadi.nci.org.au}"
 GADI_USER="${2:-jt5911}"
 REMOTE="${GADI_USER}@${GADI_HOST}"
-REMOTE_REPO="/scratch/p00/${GADI_USER}/iterative-archetypal-analysis"
 
-LOCAL_REPO="/home/DART/jonathant/Documents/Personal/PhD/iterative-archetypal-analysis"
+# Paths are derived from this script's location, so the same script works from any
+# checkout. Override with LOCAL_REPO=... / REMOTE_REPO=... if needed.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_REPO="${LOCAL_REPO:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+REMOTE_REPO="${REMOTE_REPO:-/scratch/p00/${GADI_USER}/iterative-archetypal-analysis}"
 LOCAL_RESULTS="${LOCAL_REPO}/iaa-np-reduction/runIAA_MNP/local_run_p1_500/results"
 
 mkdir -p "${LOCAL_RESULTS}"

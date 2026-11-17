@@ -35,18 +35,65 @@ LABEL_COLS = ("Total_E", "Formation_E", "Ele", "eleComb")
 DATA_PATH = REPO_ROOT / "reduced-np-regression" / "data" / "MNP_E_DF.pkl"
 DATA_NAME = f"MNP{K}S_randomSplit{P1}As"
 
-RUN_DIR = REPO_ROOT / "iaa-np-reduction" / "runIAA_MNP" / "run_p1_500_gadi"
-OUTPUTS_DIR = RUN_DIR / "subsetsOutputsPKLs"
-RESULTS_DIR = RUN_DIR / "results"
+PROJECT_DIR = REPO_ROOT / "iaa-np-reduction" / "runIAA_MNP"
+DEFAULT_RUN_DIR = PROJECT_DIR / "run_p1_500_gadi"
+
+
+def _countSubsetPickles(path: Path) -> int:
+    """Number of Round 1 pickles for this data name found in a directory."""
+    return len(list(path.glob(f"{DATA_NAME}output*.pkl"))) if path.is_dir() else 0
+
+
+def resolveRunDir() -> Path:
+    """Locate the run directory that holds the Round 1 subset pickles.
+
+    Paths are repo-relative, so the script works wherever the repo is checked out
+    (laptop or Gadi). Set IAA_RUN_DIR to force a specific run directory; otherwise
+    `run_p1_500_gadi` is preferred and an existing local-layout run directory
+    (e.g. `local_run_p1_500` copied to a cluster) is used as a fallback.
+    """
+    envRunDir = os.environ.get("IAA_RUN_DIR")
+    if envRunDir:
+        return Path(envRunDir).expanduser().resolve()
+
+    for candidate in (DEFAULT_RUN_DIR, PROJECT_DIR / "local_run_p1_500"):
+        if _countSubsetPickles(candidate / "subsetsOutputsPKLs") >= K:
+            return candidate
+    return DEFAULT_RUN_DIR
+
+
+RUN_DIR = resolveRunDir()
+OUTPUTS_DIR = Path(
+    os.environ.get("IAA_SUBSETS_DIR", RUN_DIR / "subsetsOutputsPKLs")
+).expanduser()
+RESULTS_DIR = Path(os.environ.get("IAA_RESULTS_DIR", RUN_DIR / "results")).expanduser()
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def main():
     t_start = time.time()
     print(f"=== IAA MNP Round 2 (Gadi): k={K}, p1={P1}, p2={P2}, threads={N_THREADS} ===", flush=True)
+    print(f"  Run dir:   {RUN_DIR}", flush=True)
+    print(f"  Inputs:    {OUTPUTS_DIR}", flush=True)
+    print(f"  Results:   {RESULTS_DIR}", flush=True)
 
-    # 1. Load data
-    print("\n[1/3] Loading + standardising data...", flush=True)
+    # 1. Check subset pickles (before any work, so missing inputs fail fast)
+    print(f"\n[1/3] Verifying 10 subset pickles in {OUTPUTS_DIR}...", flush=True)
+    for i in range(1, K + 1):
+        p = OUTPUTS_DIR / f"{DATA_NAME}output{i}.pkl"
+        if not p.exists():
+            existing = sorted(x.name for x in OUTPUTS_DIR.glob("*.pkl")) if OUTPUTS_DIR.is_dir() else []
+            sys.exit(
+                f"Missing subset pickle: {p}\n"
+                f"  Directory exists: {OUTPUTS_DIR.is_dir()}\n"
+                f"  Found {len(existing)} .pkl file(s): {existing[:12]}\n"
+                "  Copy the Round 1 pickles here before submitting (see sync_and_submit_gadi.sh),\n"
+                "  or point the script at them with IAA_SUBSETS_DIR=/path/to/subsetsOutputsPKLs."
+            )
+    print("  All 10 subset pickles present.", flush=True)
+
+    # 2. Load data
+    print("\n[2/3] Loading + standardising data...", flush=True)
     with open(DATA_PATH, "rb") as f:
         df = pickle.load(f)
 
@@ -67,14 +114,6 @@ def main():
         pickle.dump(sc, f)
     with open(RESULTS_DIR / "kept_row_indices.pkl", "wb") as f:
         pickle.dump(df.index.tolist(), f)
-
-    # 2. Check subset pickles
-    print(f"\n[2/3] Verifying 10 subset pickles in {OUTPUTS_DIR}...", flush=True)
-    for i in range(1, K + 1):
-        p = OUTPUTS_DIR / f"{DATA_NAME}output{i}.pkl"
-        if not p.exists():
-            sys.exit(f"Missing subset pickle: {p}")
-    print("  All 10 subset pickles present.", flush=True)
 
     # 3. Round 2 AA
     print(f"\n[3/3] Running Round 2 AA on {K * P1} intermediate archetypes (p2={P2})...", flush=True)
