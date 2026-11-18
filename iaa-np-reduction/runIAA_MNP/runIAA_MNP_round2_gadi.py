@@ -4,7 +4,7 @@ Execute Round 2 of IAA on MNP with p1=500, p2=5000 on Gadi.
 This script expects the 10 subset pickles from Round 1 to already exist in:
   <RUN_DIR>/subsetsOutputsPKLs/MNP10S_randomSplit500Asoutput{1..10}.pkl
 
-It combines them, runs the final AA stage (p2=5000) using 48 threads,
+It combines them, runs the final AA stage (p2=5000) using 10 threads,
 extracts close matches, and saves the final fitted PIAA object.
 """
 
@@ -28,7 +28,7 @@ from iteraa.piaa import fitPIAA
 K = 10
 P1 = 500
 P2 = 5000
-N_THREADS = int(os.environ.get("NCPUS", "48"))
+N_THREADS = int(os.environ.get("NCPUS", "10"))
 RANDOM_STATE = 42
 LABEL_COLS = ("Total_E", "Formation_E", "Ele", "eleComb")
 

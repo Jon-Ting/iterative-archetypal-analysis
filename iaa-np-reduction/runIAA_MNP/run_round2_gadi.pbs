@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P p00
 #PBS -q normal
-#PBS -l ncpus=48
-#PBS -l mem=32GB
-#PBS -l walltime=03:00:00
+#PBS -l ncpus=10
+#PBS -l mem=16GB
+#PBS -l walltime=12:00:00
 #PBS -l jobfs=10GB
 #PBS -l storage=scratch/p00
 #PBS -l wd
@@ -26,8 +26,8 @@ else
     exit 1
 fi
 
-export NCPUS=48
-export OMP_NUM_THREADS=48
+export NCPUS=10
+export OMP_NUM_THREADS=10
 
 PYTHON="$VENV/bin/python"
 SCRIPT="$REPO_ROOT/iaa-np-reduction/runIAA_MNP/runIAA_MNP_round2_gadi.py"
