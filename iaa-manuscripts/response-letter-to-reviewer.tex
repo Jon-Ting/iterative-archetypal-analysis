@@ -2,6 +2,8 @@
 \usepackage[left=1.5cm,right=1.5cm,top=1.5cm,bottom=1.5cm]{geometry}
 \usepackage[parfill]{parskip}
 \usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage[shortlabels]{enumitem}
 
 \begin{document}
 
@@ -14,7 +16,7 @@
 \maketitle
 
 \def\correctionDone#1{{\color{blue}{#1}}}
-\def\correctionJon#1{{\color{orange}{#1}}}
+\long\def\correctionJon#1{{\color{orange}{#1}}}
 
 
 
@@ -22,42 +24,34 @@
 
 1. The definition of “wall-clock time” in Eq. (3) is unclear. Since the first-stage AA calculations can run independently in parallel, their wall-clock contribution should be closer to the longest subset calculation rather than the sum of all subset times. Please distinguish wall-clock time from total computational cost. A timing benchmark using one of the actual MD datasets would also strengthen the scaling claim, as the current benchmarks use relatively small 5000-point 2D datasets.
 
-\correctionJon{Response: We appreciate the reviewer highlighting the need for clarity. .}
+\correctionJon{Response: We thank the reviewer for this helpful comment. We have separated aggregate computational cost from wall-clock time in the ``Computational scaling'' subsection, immediately before ``Assumptions and limitations''. The latter accounts for the $P$ processors available for the first-round calculations. We also added a three-repeat timing benchmark on the monometallic MD dataset ($n=9{,}299$, $m=134$, $k=10$, $p_1=300$), reported in the new timing table in ``Performance Evaluation''.}
 
 2. The 5000-archetype monometallic example needs clarification. Table S2 uses k = 10, p1 = 300, and p2 = 5000, meaning that only 3000 intermediate samples enter the final AA stage while 5000 archetypes are requested. This appears overparameterized and may itself contribute to the observed redundant archetypes. Please explain how the implementation handles p2 > kp1 and whether this example remains meaningful.
 
-\correctionJon{Response:   We thank the reviewer for pointing this out. 
-}
+\correctionJon{Response: We thank the reviewer for this careful observation. The reviewer is correct: with $k=10$ and $p_1=300$, the final round receives 3,000 intermediate archetypes, so $p_2=5{,}000$ is deliberately overparameterised. The implementation passes those 3,000 intermediates and the requested $p_2=5{,}000$ directly to the AA solver; it does not pad, clamp, or otherwise special-case this regime. In the recorded run, the solver completed and the resulting surplus archetypes were duplicate or near-duplicate. This deliberately overparameterised fit is used to initialise the subsequent count-selection procedure, not as a recommended setting. Supporting Information Section~S6 now explains this condition, including why the corresponding bimetallic and trimetallic examples are not overparameterised.}
 
 3. The ML validation procedure is not sufficiently clear. It is uncertain whether the 80:20 train/test split was performed before or after IAA.
 
-\correctionJon{Response: We thank the reviewer for this critical point. }
-
+\correctionJon{Response: We thank the reviewer for raising this point. We have clarified that IAA is applied first to the complete unlabelled dataset, using structural features only. The supervised comparison then uses one shared, 50-configuration held-out test set with no overlap with any training set. The full, archetypal, and random-subset models are therefore evaluated on identical unseen configurations. The revised protocol is provided in ``Model Training and Hyperparameter Optimisation''. Updated performance metrics are in ``Model Performance'' and revised hyperparameters in Table~4.}
 
 4. Some statements about predictive performance appear too strong. For formation energy, IAA gives R² = 0.986, 0.866 +/-0.072, and 0.931 for training, cross-validation, and testing, compared with 0.993, 0.990 ± 0.001, and 0.991 using all training samples. Thus, saying that reduction “does not compromise predictive quality” should be moderated. Random sampling gives a higher formation-energy validation score (0.892 +/- 0.043) than IAA (0.866 ± 0.072), so the statement that IAA “consistently outperformed” random sampling should be corrected.
 
-\correctionJon{Response: We agree that .}
+\correctionJon{Response: We thank the reviewer for these corrections. We have moderated the predictive-performance claim in ``Model Performance''. The revised text reports the remaining gap from full-data performance rather than describing reduction as cost-free. We also corrected the random-sampling comparison. The archetypal model performs better on the shared held-out test set for both targets, but random sampling has a marginally higher formation-energy cross-validation mean. This exception is now stated explicitly.}
 
 5. The claimed ML speedups should be revisited. The domain-filtered bimetallic dataset contains 300,889 configurations, compared with 1800 after IAA, giving a reduction factor of about 167 rather than 500. The ~500 factor instead appears to compare the original 917,373 configurations with 1800. The reported 500× and 125,000,000× values should also be described as theoretical scaling estimates rather than measured training-time speedups.
 
-\correctionJon{Response: We thank the reviewer .}
+\correctionJon{Response: We thank the reviewer for identifying this issue. We have corrected the baselines in the Discussion and Conclusion. The IAA set contains 1,800 configurations, compared with 300,889 domain-filtered configurations (a factor of 167) or 917,373 unfiltered configurations (a factor of 510). The corresponding linear and cubic factors are now explicitly identified as theoretical operation-count estimates, not measured downstream training-time speedups.}
 
 6. Please clarify the statement that, for Pearson correlation above 0.8, “the second of the pair was retained,” since presumably one correlated feature is removed. 
 
-\correctionJon{Response: We thank the reviewer for pointing this out. }
+\correctionJon{Response: We thank the reviewer for noting the ambiguity. We have clarified in ``Feature Selection'' that correlated feature pairs are considered in column order: the later feature is removed when Pearson correlation is greater than 0.8, and the earlier feature is retained.}
 
 7. Also state whether features were standardized/normalized before AA and Euclidean/GSx distance calculations. 
 
-\correctionJon{Response: We appreciate the reviewer’s feedback. }
+\correctionJon{Response: We thank the reviewer for requesting this clarification. We now state the scaling and distance conventions at the relevant points in the manuscript. All AA computations and prototype-matching distances use $z$-standardised structural descriptors (see ``IAA Algorithm''). Supervised models use training-fitted min--max scaling (see ``Model Training and Hyperparameter Optimisation''), and the $\mathrm{GS}_x$ metric uses raw feature vectors (Discussion, Eq.~6).}
 
 8. Finally, “entirely reproducible” seems too strong when the final archetype number still involves trial-and-error and user judgment.
 
-\correctionJon{Response: We agree with the reviewer that }
-
-
-We appreciate this critical observation. 
-Thank you for the suggestion. We have now included a comparative 
-We acknowledge the oversight. 
-
+\correctionJon{Response: We thank the reviewer for this observation. We have softened this claim in the Conclusion. The revised text describes the framework as ``largely'' unsupervised and reproducible, and identifies archetype-count selection as the remaining subjective step. The Discussion likewise describes the search as trial-and-error and identifies automated selection as future work.}
 
 \end{document}
