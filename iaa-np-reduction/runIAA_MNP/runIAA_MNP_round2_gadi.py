@@ -133,9 +133,6 @@ def main():
     r2_wall = time.time() - t_r2
     print(f"  Round 2 completed in {r2_wall:.1f} s ({r2_wall / 60:.1f} min)", flush=True)
 
-    print("\nExtracting close matches...", flush=True)
-    AA._extractCloseMatch()
-
     out_file = RESULTS_DIR / f"{DATA_NAME}_p2_{P2}_PIAA.pkl"
     with open(out_file, "wb") as f:
         pickle.dump(AA, f)
