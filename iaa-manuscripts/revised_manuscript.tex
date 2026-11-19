@@ -202,25 +202,26 @@ A further approach to reducing the computational burden is to exploit the natura
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Computational complexity and validity conditions of IAA}
+\revision{All AA computations reported in this work were performed on standardised descriptors: the $m$ structural features of $\mathbf{X}$ were rescaled to zero mean and unit variance over the complete dataset before the first round, and every subsequent round operated on that same standardised representation. The total and formation energies were excluded from the AA input. Because AA minimises the reconstruction error in the Euclidean sense, the resulting archetypes, and any distances computed between them, are defined in this standardised feature space.}
+
+\subsection{Computational Complexity and Validity Conditions of IAA}
 
 The principal contribution of IAA lies in the way outputs from successive rounds of AA are connected into a unified workflow. One practical advantage of the design is that any AA algorithm capable of returning the archetypes and reconstruction coefficient matrices can serve as the underlying solver, so the exact computational scaling of IAA inherits from the chosen implementation. Execution time is minimised by distributing as many small subsets as possible across all available processor cores. The user needs only to specify the number of intermediate archetypes from the first round and the desired number of final archetypes; parallelisation of the first round reduces the input size for the subsequent round. The overall runtime is bounded by whichever round operates on the larger combination of input and output sizes, which is typically the final round. Although additional rounds of iteration are possible, reconstruction error accumulates with each pass, so more than two iterations are not recommended in practice.
 
-\paragraph{Computational scaling}
+\subsubsection{Computational scaling}
 Consider a dataset $X \in \mathbb{R}^{N \times d}$ comprising $N$ samples in $d$ dimensions. Alternating minimisation in standard AA involves quadratic programmes with coefficient matrices of size $N \times p_2$ and $p_2 \times N$, so the dominant cost grows no slower than quadratically in $N$.
 
 Under the IAA scheme, $X$ is divided into $k$ roughly equal subsets of size $N/k$, each processed independently to yield $p_1$ intermediate archetypes. These $k p_1$ intermediate samples are then assembled and passed to a single final AA step. The total \revision{computational cost} is therefore
 \begin{equation} \label{eq:IAAtotalComputationalCost}
 C_{IAA}(n, m, k, p_1, p_2) = k \times T\left( AA\left( \frac{n}{k}, m, p_1 \right) \right) + T\left( AA\left( p_1 \times k, m, p_2 \right) \right)
 \end{equation}
-where $T(AA)$ = execution time of AA, $n$ = number of samples, $m$ = number of features, $k$ = number of subsets, $p_1$ = number of archetypes for initial round of AA (intermediate samples), $p_2$ = number of archetypes for final round of AA (output archetypes), and $AA(n, m, p)$ = AA on dataset with $n$ samples and $m$ features, returning $p$ archetypes. When $p_1 \ll N$ and $k \ll N$, this decomposition substantially reduces the quadratic dependence on $N$ relative to applying AA directly to the full dataset. \revision{With $P$ processors available for the first round, the wall-clock time is then reduced into
+where $T(AA)$ = execution time of AA, $n$ = number of samples, $m$ = number of features, $k$ = number of subsets, $p_1$ = number of archetypes for initial round of AA (intermediate samples), $p_2$ = number of archetypes for final round of AA (output archetypes), and $AA(n, m, p)$ = AA on dataset with $n$ samples and $m$ features, returning $p$ archetypes. When $p_1 \ll N$ and $k \ll N$, this decomposition substantially reduces the quadratic dependence on $N$ relative to applying AA directly to the full dataset. \revision{With $P$ processors available for the first round, the wall-clock time is then reduced to
 \begin{equation} \label{eq:IAAtotalWallTime}
-T_{IAA}(n, m, k, p1, p2, P) = \frac{k}{P} \times T(AA(\frac{n}{k} , m, p1)) + T(AA(kp1, m, p2))
+T_{IAA}(n, m, k, p_1, p_2, P) = \left\lceil\frac{k}{P}\right\rceil \times T(AA(\frac{n}{k} , m, p_1)) + T(AA(kp_1, m, p_2))
 \end{equation}
-which is close to the time needed for processing a single subset plus the final round when $P=k$ (fully parallel).}
-% TODO: Rerun timing benchmark on MNP dataset?
+which, for balanced subsets, accounts for the number of first-round batches required. It is close to the time needed for processing a single subset plus the final round when $P \geq k$ (fully parallel).}
 
-\paragraph{Assumptions and limitations}
+\subsubsection{Assumptions and limitations}
 IAA rests on the premise that the convex hull of the complete dataset is adequately captured by the union of convex hulls computed from its constituent subsets. Optimal performance is achieved when the data contain a high degree of structural redundancy and when configurations that lie on or near the extremes of the distribution appear in each subset with reasonable frequency. The method is less reliable for strongly multimodal data, because infrequent but structurally significant modes may not be represented in every subset and can consequently be lost among the intermediate archetypes. When redundancy is low or sampling is already near-uniform, the computational benefit of partitioning may be modest. A further consideration is that an overly small choice of $p_1$ introduces information loss that cannot be recovered in subsequent iterations, since errors compound across rounds. Consequently, no more than two iterations of IAA are advisable in practice.
 
 
@@ -254,6 +255,34 @@ Circular & 6.2       & 100.0        & 2         & 2.2       &  99.9     \\
 \label{tab:redRed2DdataEval}
 \end{table}
 
+
+\revision{We also benchmarked IAA and the reference AA on the monometallic nanoparticle dataset containing 9,299 configurations represented by 134 standardised structural features. IAA used $k=10$ subsets, $p_1=300$ intermediate archetypes per subset, and ten workers for the first round. The reference AA used ten solver threads. Each configuration was repeated three times. Computational cost is reported as allocated core-seconds, whereas wall-clock time is the elapsed time for the complete computation. Thus, the former accounts for all concurrent first-round workers, while the latter reflects the time experienced by a user.
+
+Table~\ref{tab:MNPtiming} shows that IAA was less expensive than the reference AA across all tested final archetype counts. At the production setting ($p_2=250$), IAA required $458 \pm 30$ core-s and $158 \pm 10$ s wall-clock time, compared with $33{,}985 \pm 14{,}531$ core-s and $3{,}399 \pm 1{,}453$ s for reference AA. This corresponds to cost and wall-clock reductions of $76 \pm 36$-fold and $22 \pm 11$-fold, respectively. These measurements support the expected practical benefit of partitioning, while distinguishing the aggregate computational resources consumed from elapsed runtime.}
+
+\begin{table}[t]
+\centering
+\caption{\revision{Timing benchmark for monometallic dataset ($n=9{,}299$, $m=134$, $k=10$, $p_1=300$). Cost is allocated core-seconds. Wall-clock time corresponds to elapsed runtime. The speedups are computed by dividing the cost for reference archetypal analysis by the cost for iterative archetypal analysis.}}
+\label{tab:MNPtiming}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{ccccccc}
+\hline
+$p_2$ &
+IAA cost (core-s) & RAA cost (core-s) & Cost speedup &
+IAA wall (s) & RAA wall (s) & Wall speedup \\
+\hline
+100  & $382 \pm 29$ & $12{,}360 \pm 2{,}474$ & $32.8 \pm 8.5$ &
+$81 \pm 6$ & $1{,}236 \pm 247$ & $15.4 \pm 4.1$ \\
+250  & $458 \pm 30$ & $33{,}985 \pm 14{,}531$ & $75.6 \pm 35.9$ &
+$158 \pm 10$ & $3{,}399 \pm 1{,}453$ & $22.0 \pm 10.8$ \\
+500  & $589 \pm 36$ & $59{,}181 \pm 27{,}536$ & $102.1 \pm 52.4$ &
+$288 \pm 17$ & $5{,}918 \pm 2{,}754$ & $20.9 \pm 11.0$ \\
+1000 & $901 \pm 59$ & $98{,}293 \pm 6{,}001$ & $109.4 \pm 10.0$ &
+$600 \pm 36$ & $9{,}829 \pm 600$ & $16.4 \pm 1.4$ \\
+\hline
+\end{tabular}}
+\end{table}
+
 To evaluate the method on real MD simulation trajectories, pairwise conformation similarity is assessed using three complementary representations: three-dimensional Cartesian coordinates ($\mathbb{R}^{i \times 3}$, where $i$ is the number of atoms), average bond length distributions (vectors of length $i$), and the radial distribution function (RDF), which quantifies the probability of finding an atom at a given distance from a reference atom~\cite{Liu2018NPRDF} (vectors of length $j$, where $j$ is the number of distribution points). Coordinate similarity is quantified by the root mean square error (RMSE), which suppresses the influence of large deviations and preserves the original units. Similarity between average bond length distributions is measured by mutual information~\cite{Kinney2014MI}, computed using the \texttt{mutual\_info\_regression} function from the \texttt{scikit-learn} package~\cite{Pedregosa2011sklearn}.
 
 The RDF is computed using the \texttt{rdfpy} package~\cite{Yildirim2021rdfpy}, with a bin width $d_\mathrm{RDF}$ given by Eqn.~\ref{eq:dataCollectOutputRDFint}, and a fixed number of distribution points ($n_\mathrm{points}$=1000) chosen to balance computational cost against statistical power. RDF similarity is evaluated through a suite of two-sample statistical tests that examine the null hypothesis that two RDFs are drawn from the same distribution, i.e., that the corresponding conformations are structurally identical. The tests employed are the two-sample Kolmogorov-Smirnov test~\cite{Conover1965KStest}, the two-sample Cram\'er-von Mises test~\cite{Anderson1962CMtest}, and the two-sample Anderson-Darling test~\cite{Scholz2012ADtest}, all implemented via the \texttt{SciPy} package. Each test is distribution-free when both empirical distributions are continuous and contain no tied values. Divergence-based similarity measures are also employed, including the Wasserstein distance~\cite{Kantorovich1960KantorovichDist}, Hellinger distance~\cite{Beran1977HellingerDist}, Kullback-Leibler divergence~\cite{Kullback1951KLdiv}, and Jensen-Shannon divergence~\cite{Fuglede2004JSdiv}.
@@ -274,7 +303,7 @@ For each pair of nanoparticle conformations, all 10 tests are applied to determi
 \subsubsection{Dataset Overview}
 \label{sec:dataset}
 
-The IAA implementation is publicly available on GitHub~\cite{SuppInfo}, together with documentation and links to all public datasets used in this study. The datasets are structurally diverse, encompassing ordered crystalline, disordered non-crystalline, and polycrystalline (including twinned) nanoparticle configurations. Details of the data generation protocol are given in Reference~\cite{Sun2018PtMD}, with full dataset descriptions provided in Supporting Information (Table S1) and the repository~\cite{SuppInfo}. All IAA parameters used in this study are listed in Supporting Information, Table S2, and the repository~\cite{SuppInfo}.
+The IAA implementation is publicly available on GitHub~\cite{SuppInfo}, together with documentation and links to all public datasets used in this study. The datasets are structurally diverse, encompassing ordered crystalline, disordered non-crystalline, and polycrystalline (including twinned) nanoparticle configurations. Details of the data generation protocol are given in Reference~\cite{Sun2018PtMD}, with full dataset descriptions provided in Supporting Information (Table S1) and the repository~\cite{SuppInfo}. All IAA parameters used in this study are listed in Supporting Information, Table S2, and the repository~\cite{SuppInfo}. \revision{Prior to applying IAA, all structural features in each dataset (134 features for the monometallic dataset, with target energy labels excluded) were standardised across configurations to zero mean and unit variance ($z$-score standardisation). Because archetypal analysis seeks to minimise the Frobenius norm $\|X - XAB\|_F^2$, the optimisation, archetype coordinates, and Euclidean distance calculations used to identify the closest-matching prototype samples to each archetype are evaluated in this standardised feature space.}
 
 \subsubsection{Elbow-Based Archetype Selection}
 \label{sec:elbowSelection}
@@ -290,7 +319,7 @@ The elbow criterion is a widely used heuristic~\cite{Fernandez2015clustAA} for s
 \subsubsection{Redundancy in Large Archetype Set}
 \label{sec:largeSetRedundancy}
 
-Extracting a large number of archetypes (here, 5000 for demonstration) inevitably introduces redundant archetypes that contribute negligibly to the reconstruction of any sample. This is evident in the simplex plots of Fig.~\ref{fig:allNPs_markPrototype_simplex_maxArchs}, which show extensive unpopulated regions near the vertices. In these plots, the contribution of a given archetype to a sample is inversely related to the distance of that sample from the corresponding vertex\footnote{Note that vertices are no longer obvious when a simplex has many vertices.}~\cite{Fernandez2015clustAA}. The absence of samples at or near a vertex indicates that the corresponding archetype either does not exist or has no close match among the original configurations. Furthermore, sparsely populated regions near higher-indexed archetypes suggest that these represent configurations never observed in the simulations. A principled balance between coverage and parsimony is therefore necessary.
+Extracting a large number of archetypes (here, 5000 for demonstration) inevitably introduces redundant archetypes that contribute negligibly to the reconstruction of any sample. This is evident in the simplex plots of Fig.~\ref{fig:allNPs_markPrototype_simplex_maxArchs}, which show extensive unpopulated regions near the vertices. In these plots, the contribution of a given archetype to a sample is inversely related to the distance of that sample from the corresponding vertex\footnote{Note that vertices are no longer obvious when a simplex has many vertices.}~\cite{Fernandez2015clustAA}. The absence of samples at or near a vertex indicates that the corresponding archetype either does not exist or has no close match among the original configurations. \revision{In the monometallic dataset (Fig.~\ref{fig:allNPs_markPrototype_simplex_maxArchs}(a)), for instance, an entire hemisphere of the simplex remains unoccupied, reflecting the substantial physical redundancy and low intrinsic dimensionality of the configurations (a detailed breakdown of archetype utilisation and parameters is provided in Supporting Information, Section~S6 and Table~S2).} Furthermore, sparsely populated regions near higher-indexed archetypes suggest that these represent configurations never observed in the simulations. A principled balance between coverage and parsimony is therefore necessary.
 \begin{figure}[t] \centering
 \includegraphics[width=\textwidth]{allNPs_markPrototype_simplex_maxArchs}
 \caption{Simplex plots of the samples for (a) the monometallic Au (blue), Pd (orange), and Pt (green), (b) the bimetallic AuPd (blue), AuPt (orange), and PdPt (green), and (c) the trimetallic AuPdPt (blue) nanoparticle datasets with 5000 archetypes. The crosses indicate the hypothetical prototypes with averaged feature values and the same elemental combinations. Points are sized relative to the average diameters of the nanoparticles.\vspace{-5mm}}
@@ -339,7 +368,7 @@ To confirm that the IAA-reduced datasets preserve physically meaningful structur
 \subsubsection{Feature Selection}
 \label{sec:featSelection}
 
-Feature selection was conducted ahead of model training to limit redundancy and constrain model complexity. Any feature with zero variance was excluded, and when two features exceeded a Pearson correlation of 0.8, \revision{the first-encountered feature was removed, retaining the second}. Features were additionally ranked by experimental interpretability where this was applicable. The selected feature set formed the input to all subsequent supervised regression models. Correlation matrices for the retained features are shown in Figure~\ref{fig:MNPCorrHeatmap}.
+Feature selection was conducted ahead of model training to limit redundancy and constrain model complexity. Any feature with zero variance was excluded, and when two features exceeded a Pearson correlation of 0.8, \revision{the second feature encountered (in column order) was removed, retaining the first}. Features were additionally ranked by experimental interpretability where this was applicable. The selected feature set formed the input to all subsequent supervised regression models. Correlation matrices for the retained features are shown in Figure~\ref{fig:MNPCorrHeatmap}.
 
 \begin{figure}[htbp]
     \begin{subfigure}{\textwidth}
@@ -359,7 +388,9 @@ Feature selection was conducted ahead of model training to limit redundancy and 
 \subsubsection{Model Training and Hyperparameter Optimisation}
 \label{sec:modelTrain}
 
-\revision{For the full dataset, 50 instances were held out as a test set and the models were trained on the remaining 9,249 instances. For the reduced datasets (both the 250 archetypal samples and the 10 random subsets of 250 samples), models were trained on all 250 of their instances and evaluated on the same held-out test set of 50 unseen instances, which has zero overlap with any training set. Because the full-dataset, archetypal, and random-sample models are all evaluated on exactly the same 50 samples, their test scores are directly comparable.} A random forest regressor was selected for its robustness to nonlinear feature relationships and its minimal distributional assumptions. Hyperparameter tuning was carried out by random search over 1000 parameter combinations using 5-fold cross-validation, with the coefficient of determination ($R^2$) as the scoring metric. The explored parameter ranges and the resulting optimal hyperparameters are listed in Table~\ref{tab:RFoptimisedHP}. All additional parameters required to reproduce the reported results are: \textit{min\_weight\_fraction\_leaf}=0.0, \textit{min\_impurity\_decrease}=0.0, \textit{bootstrap}=True, \textit{oob\_score}=False, \textit{random\_state}=42, \textit{warm\_start}=False, \textit{ccp\_alpha}=0.0, \textit{max\_samples}=None, \textit{monotonic\_cst}=None.
+\revision{The reduction was applied before this partition: IAA was run on the complete unlabelled dataset ($n=9{,}299$) using only the structural features, and the partition described here concerns the supervised models trained on the resulting subsets. For the full dataset, 50 instances were held out as a test set and the models were trained on the remaining 9,249 instances. For the reduced datasets (both the 250 archetypal samples and the 10 random subsets of 250 samples), models were trained on all 250 of their instances and evaluated on the same held-out test set of 50 unseen instances, which has zero overlap with any training set. Because the full-dataset, archetypal, and random-sample models are all evaluated on exactly the same 50 samples, their test scores are directly comparable. 
+
+For all supervised regression models, retained features were scaled to $[0, 1]$ via min-max normalisation, with the scaler fitted strictly on the training partition and subsequently applied to transform the test set.} A random forest regressor was selected for its robustness to nonlinear feature relationships and its minimal distributional assumptions. Hyperparameter tuning was carried out by random search over 1000 parameter combinations using 5-fold cross-validation, with the coefficient of determination ($R^2$) as the scoring metric. The explored parameter ranges and the resulting optimal hyperparameters are listed in Table~\ref{tab:RFoptimisedHP}. All additional parameters required to reproduce the reported results are: \textit{min\_weight\_fraction\_leaf}=0.0, \textit{min\_impurity\_decrease}=0.0, \textit{bootstrap}=True, \textit{oob\_score}=False, \textit{random\_state}=42, \textit{warm\_start}=False, \textit{ccp\_alpha}=0.0, \textit{max\_samples}=None, \textit{monotonic\_cst}=None.
 
 \begin{table}[hp!]
     \caption{Hyperparameters optimised \textit{via} random search using random forest regressors over 1000 combinations, fitted to whole training set and most archetypal samples. $E_{Total}$ and $E_{Formation}$ represent total and formation energies, respectively. `se', `ae', and `fm' are abbreviations for `squared\_error', `absolute\_error', and `friedman\_mse', respectively.}
@@ -388,53 +419,51 @@ Feature selection was conducted ahead of model training to limit redundancy and 
 \subsubsection{Model Performance}
 \label{sec:modelPerformance}
 
-Learning curves and evaluation results for the optimised regressors are presented in Figure~\ref{fig:RFRresultsEtotform}. Models trained on the archetypal samples achieved strong predictive performance for both energy targets, with slight underfitting and overfitting observed for formation energy. The somewhat reduced performance on formation energy is consistent with its greater sensitivity to fine-grained structural variation, making it a more exacting test of dataset quality.
-
-For total energy, the model trained on archetypal samples achieved $R^2$ scores of \revision{0.992} (training), \revision{$0.966 \pm 0.013$} (cross-validation), and \revision{0.958} (testing). These are comparable to the scores obtained when all training samples are used: 0.998 (training), $0.995 \pm 0.001$ (cross-validation), and \revision{0.996} (testing). For formation energy, the archetypal-sample model achieved $R^2$ scores of \revision{0.983} (training), \revision{$0.897 \pm 0.020$} (cross-validation), and 0.931 (testing), compared with 0.993 (training), $0.990 \pm 0.001$ (cross-validation), and 0.991 (testing) when all training samples are used.
+Learning curves and evaluation results for the optimised regressors are presented in Figure~\ref{fig:RFRresultsEtotform}. Models trained on the archetypal samples achieved strong predictive performance for both energy targets. For total energy, the model trained on archetypal samples achieved $R^2$ scores of \revision{0.992} (training), \revision{$0.966 \pm 0.013$} (cross-validation), and \revision{0.958} (testing). These are \revision{only slightly worse than} the scores obtained when all training samples are used: 0.998 (training), $0.995 \pm 0.001$ (cross-validation), and \revision{0.996} (testing). For formation energy, the archetypal-sample model achieved $R^2$ scores of \revision{0.983} (training), \revision{$0.897 \pm 0.020$} (cross-validation), and \revision{0.931} (testing), compared with 0.993 (training), $0.990 \pm 0.001$ (cross-validation), and 0.991 (testing) when all training samples are used.
 
 \begin{figure}[htbp]
     \centering
-        \begin{subfigure}{0.46\textwidth}
+        \begin{subfigure}{0.40\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveRFR_Etot_minmax}
         \caption{} \label{fig:MNPELearnCurveRFR_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllRFR_Etot_minmax}
         \caption{} \label{fig:MNPER2AllRFR_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveRFR_Eform_minmax}
         \caption{} \label{fig:MNPELearnCurveRFR_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllRFR_Eform_minmax}
         \caption{} \label{fig:MNPER2AllRFR_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.45\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveRFR_red_Etot_minmax}
         \caption{} \label{fig:MNPELearnCurveRFR_red_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllRFR_red_Etot_minmax}
         \caption{} \label{fig:MNPR2AllRFR_red_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveRFR_red_Eform_minmax}
         \caption{} \label{fig:MNPELearnCurveRFR_red_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.47\textwidth}
+    \begin{subfigure}{0.41\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllRFR_red_Eform_minmax}
         \caption{} \label{fig:MNPR2AllRFR_red_Eform_minmax}
     \end{subfigure}
-    \caption{Results of the optimised random forest regressors fitted to (a-d) all training samples and (e-h) most archetypal samples, predicting the (a-b, e-f) total energy and (c-d, g-h) formation energy of monometallic nanoparticles: (a, c, e, g) learning curves and (b, d, f, h) scatter plots of predictions on training and testing sets.}
+    \caption{\revision{Results of the optimised random forest regressors fitted to (a-d) all training samples and (e-h) most archetypal samples, predicting the (a-b, e-f) total energy and (c-d, g-h) formation energy of monometallic nanoparticles: (a, c, e, g) learning curves and (b, d, f, h) scatter plots of predictions on training and testing sets.}}
     \label{fig:RFRresultsEtotform}
 \end{figure}
 
 These results confirm that the IAA-reduced dataset retains the structural information required for accurate energy prediction. The close alignment between training, validation, and testing performance indicates low overfitting and good generalisation, demonstrating that the reduction in dataset size \revision{largely preserves predictive performance with minimal accuracy loss}.
 
-To establish that the observed improvements stem from the IAA sampling strategy rather than from simply working with a smaller dataset, a baseline was constructed using randomly drawn subsets of equal size. The random sampling and model fitting procedures were repeated over 10 independent iterations. For total energy, the average $R^2$ scores were \revision{0.993} (training), \revision{$0.962 \pm 0.020$} (validation), and \revision{0.949} (testing). For formation energy, the corresponding averages were \revision{0.978} (training), \revision{$0.903 \pm 0.035$} (validation), and \revision{0.849} (testing). \revision{Crucially, the models trained on IAA-selected samples outperformed those trained on randomly selected samples of equivalent size on the unseen test set for both total energy (0.958 \textit{vs.} 0.949) and formation energy (0.931 \textit{vs.} 0.849). For total energy, the archetypal model also achieved a higher cross-validation score ($0.966 \pm 0.013$ \textit{vs.} $0.962 \pm 0.020$) with virtually identical training performance (0.992 \textit{vs.} 0.993). For formation energy, the archetypal model achieved higher training performance (0.983 \textit{vs.} 0.978), while random sampling gave a marginally higher cross-validation score ($0.903 \pm 0.035$ \textit{vs.} $0.897 \pm 0.020$), though the two overlap within one standard deviation.}
+To establish that the observed improvements stem from the IAA sampling strategy rather than from simply working with a smaller dataset, a baseline was constructed using randomly drawn subsets of equal size. The random sampling and model fitting procedures were repeated over 10 independent iterations. For total energy, the average $R^2$ scores were \revision{0.993} (training), \revision{$0.962 \pm 0.020$} (validation), and \revision{0.949} (testing). For formation energy, the corresponding averages were \revision{0.978} (training), \revision{$0.903 \pm 0.035$} (validation), and \revision{0.849} (testing). \revision{The models trained on IAA-selected samples outperformed those trained on randomly selected samples of equivalent size on the unseen test set for both total energy (0.958 \textit{vs.} 0.949) and formation energy (0.931 \textit{vs.} 0.849). For total energy, the archetypal model also achieved a higher cross-validation score ($0.966 \pm 0.013$ \textit{vs.} $0.962 \pm 0.020$) with virtually identical training performance (0.992 \textit{vs.} 0.993). For formation energy, the archetypal model achieved higher training performance (0.983 \textit{vs.} 0.978), while random sampling gave a marginally higher cross-validation score ($0.903 \pm 0.035$ \textit{vs.} $0.897 \pm 0.020$), though the two overlap within one standard deviation.}
 
-Consistent trends were observed when linear regressors replaced the random forest models, reinforcing the generalisability of these findings across model classes. The corresponding results are reported in Supporting Information, Section S9.
+\revision{The ranking does not carry over to linear regressors: on the held-out test configurations, models trained on randomly selected subsets score higher than those trained on archetypal samples (0.965 \textit{vs.} 0.953 for total energy and 0.930 \textit{vs.} 0.917 for formation energy), although the archetypal models achieve higher cross-validation scores for both targets. The advantage of archetypal sampling reported above is therefore specific to the random forest regressors used here; the linear-regressor results are reported in Supporting Information, Section~S9.}
 
 Taken together, these comparisons show that the advantage conferred by IAA arises from the quality of the selected samples rather than the reduction in quantity alone. By preserving broad coverage of the feature space while eliminating redundant configurations, IAA produces datasets that are more informative and better suited for downstream machine learning.
 
@@ -445,13 +474,13 @@ The results confirm that IAA is capable of substantially reducing dataset size w
 \section{Discussion}
 \label{sec:discussion}
 
-Application of IAA to the metallic nanoparticle datasets produces substantially smaller datasets with reduced redundancy, opening the door to further independent analyses. A direct comparison with the conventional domain-driven approach, which removes redundant samples using pairwise similarity thresholds (see Supporting Information, Table S1, and the repository~\cite{SuppInfo}), illustrates the magnitude of the difference: for the bimetallic dataset, IAA achieved a 99.8\% reduction in sample count, compared with only 67.2\% for the domain-driven method. The practical consequence for model training is dramatic: ML algorithms such as linear regressors (scaling as $O(nm^2+m^3)$) and support vector machines (scaling as $O(n^3)$) can be trained approximately 500 and 125,000,000 times faster, respectively, when using IAA-extracted datasets in place of domain-filtered ones. Although applying more stringent domain-driven thresholds could in principle yield further reductions, doing so risks preferential removal of low-energy configurations, introducing selection bias. IAA avoids this problem entirely by dispensing with user-defined thresholds, thereby minimising the subjective element of the redundancy removal process.
+Application of IAA to the metallic nanoparticle datasets produces substantially smaller datasets with reduced redundancy, opening the door to further independent analyses. A direct comparison with the conventional domain-driven approach, which removes redundant samples using pairwise similarity thresholds (see Supporting Information, Table S1, and the repository~\cite{SuppInfo}), illustrates the magnitude of the difference: for the bimetallic dataset, IAA achieved a 99.8\% reduction in sample count, compared with only 67.2\% for the domain-driven method. The practical consequence for model training is \revision{substantial: for algorithms whose cost grows linearly with the number of samples, such as linear regression ($O(nm^2+m^3)$), training on the IAA-reduced bimetallic dataset (1,800 samples) rather than on the domain-filtered one (300,889 samples) reduces the $n$-dependent cost by a factor of 167; for methods with cubic sample dependence, such as support vector machines ($O(n^3)$), the corresponding factor is approximately $4.7 \times 10^{6}$. Measured against the unfiltered bimetallic dataset (917,373 samples) instead, the equivalent factors are 510 and approximately $1.3 \times 10^{8}$. These are theoretical operation-count estimates derived from the scaling of each algorithm with $n$, not measured training times.} Although applying more stringent domain-driven thresholds could in principle yield further reductions, doing so risks preferential removal of low-energy configurations, introducing selection bias. IAA avoids this problem entirely by dispensing with user-defined thresholds, thereby minimising the subjective element of the redundancy removal process.
 
 To demonstrate that the IAA-reduced datasets are more informatively sampled than those produced by the domain-driven approach, we draw on concepts from active learning for regression~\cite{Wu2019GSx}. The objective of active learning is to identify the smallest set of labelled samples needed to train an effective ML model~\cite{Tharwat2023AL}. A widely used sampling criterion in active learning is greedy sampling on the inputs (GSx)~\cite{Wu2019GSx}, which selects samples that maximise diversity in the feature space by choosing at each step the point most distant from all previously selected points. Inspired by this framework, we adopt the GSx diversity metric (Eqn.~\ref{eq:GSx}) to compare the feature-space coverage of the domain-driven and IAA-reduced datasets.
 \begin{equation} \label{eq:GSx}
     div_{\mathrm{GS}_x} = \frac{1}{N} \sum_i^N \min\limits_{j \neq i} d(R_i, R_j)
 \end{equation}
-where $d(x, y)$ = distance between instances $x$ and $y$, $R$ = reduced dataset, and $N$ = $|R|$, number of samples in $R$.
+where $d(x, y)$ \revision{is the Euclidean distance between instances $x$ and $y$ evaluated on the unstandardised feature vectors}, $R$ = reduced dataset, and $N$ = $|R|$, number of samples in $R$.
 
 A higher value of this metric indicates that samples are more widely separated in feature space, reflecting greater overall diversity. The IAA-reduced dataset achieves a diversity score of $div_{\mathrm{GS}_x} = 2919.8$, more than an order of magnitude larger than the domain-driven reduced dataset ($div_{\mathrm{GS}_x} = 247.2$), underscoring the superiority of IAA for extracting diverse, non-redundant subsets from MD trajectories. This is corroborated by the feature profiles shown in Fig.~\ref{fig:allNPs_maxArchs_compareFeatProfRadarPlots_allFeats}, which span the full extent of the feature space, confirming that the archetypal samples are both diverse and unbiased with respect to coverage. The empty sections in the monometallic profile (Fig.~\ref{fig:allNPs_maxArchs_compareFeatProfRadarPlots_allFeats}(a)) correspond to features with constant values that carry no information for the archetype computation. Because the retained samples are the closest matches to the computed archetypes, examining their feature profiles offers insight into the distinctive characteristics of the non-redundant configurations preserved in the reduced datasets.
 \begin{figure}[t] \centering
@@ -468,7 +497,7 @@ In the current work, IAA is applied before feature selection to permit fair comp
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have introduced an iterative approach to archetypal analysis and, for the first time, applied it to the extraction of compact, representative sample sets from molecular dynamics trajectories. The performance of iterative archetypal analysis was benchmarked on three structural datasets from MD simulations, in comparison with a reference active set implementation, demonstrating speedups of up to an order of magnitude with negligible reduction in explained variance. The archetypal subsets achieved a 99.8\% reduction in the sample space, far exceeding the 67.2\% reduction obtained by domain-knowledge-based filtering; the consequence for ML model training is a potential speedup of hundreds of thousands of times. This work establishes a pathway to obtaining representative, low-redundancy data subsets from large-scale MD datasets, and provides an \revision{largely} unsupervised, data-driven, and reproducible framework for preparing MD simulation data for machine learning\revision{, in which the principal remaining subjective step can be guided by a quantitative criteria}.\par
+We have introduced an iterative approach to archetypal analysis and, for the first time, applied it to the extraction of compact, representative sample sets from molecular dynamics trajectories. The performance of iterative archetypal analysis was benchmarked on three structural datasets from MD simulations, in comparison with a reference active set implementation, demonstrating speedups of up to an order of magnitude with negligible reduction in explained variance. The archetypal subsets achieved a 99.8\% reduction in the sample space, far exceeding the 67.2\% reduction obtained by domain-knowledge-based filtering; the \revision{corresponding reduction in the $n$-dependent training cost is 167-fold for algorithms that scale linearly with sample count, and a theoretical $4.7 \times 10^{6}$-fold for those that scale cubically}. This work establishes a pathway to obtaining representative, low-redundancy data subsets from large-scale MD datasets, and provides an \revision{largely} unsupervised, data-driven, and reproducible framework for preparing MD simulation data for machine learning\revision{, in which the principal remaining subjective step can be guided by a quantitative criterion}.\par
 
 
 
