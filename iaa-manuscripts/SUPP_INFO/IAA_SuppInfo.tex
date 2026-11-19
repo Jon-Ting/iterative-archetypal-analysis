@@ -29,8 +29,9 @@
 \renewcommand{\thesection}{S\arabic{section}}
 \renewcommand{\thetable}{S\arabic{table}}
 \renewcommand{\thefigure}{S\arabic{figure}}
-\newcommand{\jon}[1]{{\color{red}#1}}
+\newcommand{\jon}[1]{{\color{blue}#1}}
 \newcommand{\amanda}[1]{{\color{green}#1}}
+\newcommand{\revision}[1]{{\color{red}#1}}
 
 
 \begin{document}
@@ -136,7 +137,7 @@ Elbow plot-informed archetypes & $k$        &   10 &  100 &   10 \\
                                & $p_1$      &  100 &  200 &  200 \\
                                & $p_2$      &  100 &  200 &  200 \\
 Maximum number of archetypes   & $k$        &   10 &  100 &   10 \\
-                               & $p_1$      &  300 &  500 & 1000 \\
+                               & $p_1$      &  \revision{500} &  500 & 1000 \\
                                & $p_2$      & 5000 & 5000 & 5000 \\
 No redundant archetype         & $k$        &   10 &  100 &   10 \\
                                & $p_1$      &  300 &  500 & 1000 \\
@@ -202,7 +203,7 @@ Figures~\ref{fig:MNP3S_randomSplit_closeMatch_tSNE}, \ref{fig:MNP3S_eleSplit_clo
 \section{Optimising the Numbers of Archetypes}
 \label{sec:SINumArchOpt}
 
-As described in the main text, the appropriate number of archetypes is determined by starting from 5000 (a value known to produce redundant sampling) and progressively reducing this number until the vertices of the simplex plots are fully or nearly populated by configurations that are present in the original dataset. Representative examples of this process are shown in Fig.~\ref{fig:BTNPsNumArchs}. Notably, the prototype in Fig.~\ref{fig:BTNPsNumArchs}(d) is positioned closer to the centre than those in panels (e) and (f), illustrating that a central prototype position is not sufficient to confirm the absence of redundant archetypes.
+As described in the main text, the appropriate number of archetypes is determined by starting from 5000 (a value known to produce redundant sampling) and progressively reducing this number until the vertices of the simplex plots are fully or nearly populated by configurations that are present in the original dataset. \revision{For the monometallic dataset ($k=10$, $p_1=500$, $p_2=5{,}000$), the final AA stage receives $k p_1 = 5{,}000$ intermediate archetypes. As shown in the simplex plot, approximately half of the simplex remains unoccupied, and archetypes A2695 through A5000 receive zero weight across all samples. This confirms that the redundancy observed at $p_2 = 5{,}000$ reflects the substantial physical redundancy of the dataset rather than intermediate sample undersampling. For the bimetallic and trimetallic datasets, $k p_1$ is 50{,}000 and 10{,}000 respectively, where $p_2 = 5{,}000$ similarly reveals extensive unpopulated regions.} Representative examples of this process are shown in Fig.~\ref{fig:BTNPsNumArchs}. Notably, the prototype in Fig.~\ref{fig:BTNPsNumArchs}(d) is positioned closer to the centre than those in panels (e) and (f), illustrating that a central prototype position is not sufficient to confirm the absence of redundant archetypes.
 
 \begin{figure}[htbp] \centering
 \includegraphics[width=\textwidth]{BTNPsNumArchs}
@@ -262,40 +263,40 @@ The feature profiles of the metallic nanoparticle archetypes can be examined thr
 \section{Linear Regression Results on Energy Prediction}
 \label{sec:SILRRRes}
 
-The learning curves and evaluation results for the fitted linear regressors are shown in Figure~\ref{fig:LRRresultsEtotform}. For total energy prediction, the model trained on the most archetypal samples achieved $R^2$ scores of 0.995 (training), $0.981 \pm 0.004$ (cross-validation), and 0.972 (testing). These are comparable to the scores obtained using all training samples: 0.981 (training), $0.981 \pm 0.002$ (cross-validation), and 0.979 (testing). For formation energy prediction, the archetypal-sample model achieved $R^2$ scores of 0.977 (training), $0.927 \pm 0.023$ (cross-validation), and 0.928 (testing), compared with 0.957 (training), $0.956 \pm 0.003$ (cross-validation), and 0.959 (testing) when all training samples are used.
+The learning curves and evaluation results for the fitted linear regressors are shown in Figure~\ref{fig:LRRresultsEtotform}. \revision{All models are evaluated under the shared held-out protocol described in the main text: the 50 test configurations were drawn once, before any model fitting, from the configurations that belong to neither the 250-sample archetypal set nor any of the random subsets, so no configuration used to fit any model appears in the test set. The full-dataset model was trained on the remaining 9{,}249 configurations, while the archetypal-sample model was trained on all 250 archetypes and scored on the same 50 held-out configurations.} For total energy prediction, the model trained on the most archetypal samples achieved $R^2$ scores of \revision{0.990} (training), \revision{$0.976 \pm 0.008$} (cross-validation), and \revision{0.953} (testing), against \revision{0.981} (training), \revision{$0.980 \pm 0.002$} (cross-validation), and \revision{0.969} (testing) \revision{when all training samples are used}. For formation energy prediction, the archetypal-sample model achieved $R^2$ scores of \revision{0.963} (training), \revision{$0.927 \pm 0.017$} (cross-validation), and \revision{0.917} (testing), compared with 0.958 (training), $0.957 \pm 0.002$ (cross-validation), and 0.950 (testing) \revision{for the full dataset}.
 
 \begin{figure}[htbp]
     \centering
     \footnotesize
-    \begin{subfigure}{0.4\textwidth}
+    \begin{subfigure}{0.38\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveLRR_Etot_minmax}
         \caption{} \label{fig:MNPELearnCurveLRR_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllLRR_Etot_minmax}
         \caption{} \label{fig:MNPER2AllLRR_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveLRR_Eform_minmax}
         \caption{} \label{fig:MNPELearnCurveLRR_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllLRR_Eform_minmax}
         \caption{} \label{fig:MNPER2AllLRR_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.39\textwidth}
+    \begin{subfigure}{0.37\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveLRR_red_Etot_minmax}
         \caption{} \label{fig:MNPELearnCurveLRR_red_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllLRR_red_Etot_minmax}
         \caption{} \label{fig:MNPR2AllLRR_red_Etot_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPELearnCurveLRR_red_Eform_minmax}
         \caption{} \label{fig:MNPELearnCurveLRR_red_Eform_minmax}
     \end{subfigure}
-    \begin{subfigure}{0.41\textwidth}
+    \begin{subfigure}{0.39\textwidth}
         \includegraphics[width=\textwidth]{MNPR2AllLRR_red_Eform_minmax}
         \caption{} \label{fig:MNPR2AllLRR_red_Eform_minmax}
     \end{subfigure}
@@ -303,7 +304,7 @@ The learning curves and evaluation results for the fitted linear regressors are 
     \label{fig:LRRresultsEtotform}
 \end{figure}
 
-For linear regressors trained on randomly selected samples of equal size, the average $R^2$ scores for total energy prediction were 0.989 (training), $0.949 \pm 0.027$ (validation), and 0.969 (testing). For formation energy, the corresponding averages were 0.975 (training), $0.898 \pm 0.037$ (validation), and 0.911 (testing). Consistent with the random forest results reported in the main text, models trained on randomly selected samples of equivalent size were uniformly outperformed by those trained on IAA-selected archetypal samples.
+For linear regressors trained on randomly selected samples of equal size \revision{(average over ten subsets), the $R^2$ scores for total energy prediction were 0.987 (training), $0.959 \pm 0.016$ (cross-validation), and 0.965 (testing)}. For formation energy, the corresponding averages were \revision{0.971 (training), $0.914 \pm 0.037$ (cross-validation), and 0.930 (testing). Unlike the random forests reported in the main text, the linear regressors trained on IAA-selected archetypes do not outperform the random-subset average on the held-out test configurations: their cross-validation scores are higher (0.976 against 0.959 for total energy, and 0.927 against 0.914 for formation energy), but their test scores are lower (0.953 against 0.965, and 0.917 against 0.930). For this model class, therefore, training on 250 archetypal configurations does not improve generalisation to unseen configurations relative to an equal-sized random sample, even though its cross-validated scores are higher for both targets.}
 
 
 
